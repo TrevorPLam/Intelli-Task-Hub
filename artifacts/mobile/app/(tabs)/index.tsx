@@ -22,6 +22,9 @@ import Colors from "@/constants/colors";
 import {
   useCreateOpenaiConversation,
   useListOpenaiConversations,
+  useGetOpenaiConversation,
+  parseSseChunk,
+  readSseData,
 } from "@workspace/api-client-react";
 
 interface Message {
@@ -72,7 +75,7 @@ export default function ChatScreen() {
 
   useEffect(() => {
     startNewConversation();
-  }, []);
+  }, [startNewConversation]);
 
   const sendMessage = useCallback(async () => {
     if (!input.trim() || isSending || !conversationId) return;
@@ -107,18 +110,22 @@ export default function ChatScreen() {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const text = decoder.decode(value, { stream: true });
-        const lines = text.split("\n");
+        buffer += decoder.decode(value, { stream: true });
 
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
+        const { events, remaining } = parseSseChunk(buffer);
+        buffer = remaining;
+
+        for (const event of events) {
+          const data = readSseData(event);
+          if (data) {
             try {
-              const parsed = JSON.parse(line.slice(6));
+              const parsed = JSON.parse(data);
               if (parsed.content) {
                 assembled += parsed.content;
                 setStreamingContent(assembled);
@@ -133,7 +140,63 @@ export default function ChatScreen() {
                 setStreamingContent("");
                 assembled = "";
               }
-            } catch {}
+            } catch {
+              // Ignore parse errors for malformed chunks
+            }
+          }
+        }
+      }
+
+      // Process final buffer
+      buffer += decoder.decode();
+      const { events, remaining } = parseSseChunk(buffer);
+
+      for (const event of events) {
+        const data = readSseData(event);
+        if (data) {
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.content) {
+              assembled += parsed.content;
+              setStreamingContent(assembled);
+            }
+            if (parsed.done) {
+              const assistantMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                role: "assistant",
+                content: assembled,
+              };
+              setMessages((prev) => [...prev, assistantMessage]);
+              setStreamingContent("");
+              assembled = "";
+            }
+          } catch {
+            // Ignore parse errors for malformed chunks
+          }
+        }
+      }
+
+      // Handle any final unterminated event
+      if (remaining.trim()) {
+        const data = readSseData(remaining);
+        if (data) {
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.content) {
+              assembled += parsed.content;
+              setStreamingContent(assembled);
+            }
+            if (parsed.done) {
+              const assistantMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                role: "assistant",
+                content: assembled,
+              };
+              setMessages((prev) => [...prev, assistantMessage]);
+              setStreamingContent("");
+            }
+          } catch {
+            // Ignore parse errors
           }
         }
       }
@@ -144,29 +207,34 @@ export default function ChatScreen() {
     }
   }, [input, isSending, conversationId]);
 
-  const loadConversation = useCallback(
-    async (conv: Conversation) => {
-      try {
-        const baseUrl = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
-        const response = await fetch(
-          `${baseUrl}/api/openai/conversations/${conv.id}`
-        );
-        const data = await response.json();
-        setConversationId(conv.id);
-        setMessages(
-          data.messages.map((m: { id: number; role: "user" | "assistant"; content: string }) => ({
-            id: String(m.id),
-            role: m.role,
-            content: m.content,
-          }))
-        );
-        setShowConversations(false);
-      } catch {
-        Alert.alert("Error", "Could not load conversation.");
-      }
-    },
-    []
+  // Use React Query to fetch conversation details when conversationId changes
+  const { data: conversationData } = useGetOpenaiConversation(
+    conversationId ?? 0,
+    {
+      query: {
+        enabled: !!conversationId,
+      },
+    }
   );
+
+  // Sync messages from fetched conversation data
+  useEffect(() => {
+    if (conversationData?.messages) {
+      setMessages(
+        conversationData.messages.map((m) => ({
+          id: String(m.id),
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        }))
+      );
+    }
+  }, [conversationData]);
+
+  const loadConversation = useCallback(async (conv: Conversation) => {
+    setConversationId(conv.id);
+    setShowConversations(false);
+    // Messages will be loaded by the useGetOpenaiConversation hook
+  }, []);
 
   const renderMessage = useCallback(
     ({ item }: { item: Message }) => {
@@ -185,9 +253,7 @@ export default function ChatScreen() {
             style={[
               styles.messageText,
               {
-                color: isUser
-                  ? colors.chatUserText
-                  : colors.chatAssistantText,
+                color: isUser ? colors.chatUserText : colors.chatAssistantText,
               },
             ]}
           >
@@ -199,7 +265,8 @@ export default function ChatScreen() {
     [colors]
   );
 
-  const topInset = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
+  const topInset =
+    Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
   return (
@@ -272,7 +339,11 @@ export default function ChatScreen() {
                 },
               ]}
             >
-              <Feather name="message-square" size={14} color={colors.textSecondary} />
+              <Feather
+                name="message-square"
+                size={14}
+                color={colors.textSecondary}
+              />
               <Text
                 style={[styles.convItemText, { color: colors.text }]}
                 numberOfLines={1}
@@ -312,7 +383,10 @@ export default function ChatScreen() {
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <View
-                style={[styles.emptyIcon, { backgroundColor: colors.tint + "20" }]}
+                style={[
+                  styles.emptyIcon,
+                  { backgroundColor: colors.tint + "20" },
+                ]}
               >
                 <Feather name="cpu" size={32} color={colors.tint} />
               </View>
@@ -341,9 +415,7 @@ export default function ChatScreen() {
                     },
                   ]}
                 >
-                  <Text
-                    style={[styles.suggestionText, { color: colors.text }]}
-                  >
+                  <Text style={[styles.suggestionText, { color: colors.text }]}>
                     {s}
                   </Text>
                 </Pressable>
@@ -421,9 +493,7 @@ export default function ChatScreen() {
                 styles.sendBtn,
                 {
                   backgroundColor:
-                    !input.trim() || isSending
-                      ? colors.border
-                      : colors.tint,
+                    !input.trim() || isSending ? colors.border : colors.tint,
                   opacity: pressed ? 0.8 : 1,
                 },
               ]}

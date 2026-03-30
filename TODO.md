@@ -418,69 +418,6 @@ server.closeAllConnections() — close idle keep-alive (Node 18.2+)
 closePool() — end database connections
   ↓
 process.exit(0) — clean exit
-```
-
----
-
-<a id="t-06"></a>
-
-## [ ] T-06 — SSE Robustness in Chat Tab
-
-**Status:** `NOT_STARTED`
-
-### Definition of Done
-
-- The chat tab's SSE consumer correctly handles chunk-boundary splits (multi-chunk events never produce a parse error).
-- The `useEffect` missing-dependency lint error is resolved.
-- Conversation loading reuses the generated React Query hooks instead of raw `fetch`.
-- The existing `useVoiceStream.ts` SSE parsing logic is extracted into a shared utility and reused.
-
-### Out of Scope
-
-- Replacing SSE with WebSockets.
-- Implementing conversation title editing (tracked separately under UX improvements).
-- Voice/audio streaming integration with the chat tab.
-
-### Rules to Follow
-
-- SSE parsing must buffer incomplete lines across chunks before attempting `JSON.parse`.
-- The shared SSE utility must be placed in `lib/` (not co-located in the mobile app) so it is reusable by both React Native and the mockup sandbox.
-- `useEffect` dependency arrays must be exhaustive; if `startNewConversation` changes identity on every render, it must be wrapped in `useCallback` first.
-- React Query's `useQuery` must be used for read operations (conversation list, conversation load); `useMutation` for message send.
-
-### Advanced Coding Patterns
-
-- [ ] **T-06-P1 — Research: SSE parsing in React Native (Feb 2026)**
-  - Study Expo's `expo/fetch` SSE implementation — as of SDK 54, `expo/fetch` supports `response.body` as a `ReadableStream` on the New Architecture; review `TextDecoderStream` availability on Hermes 0.81.
-  - Review the existing `useVoiceStream.ts` delimiter regex (`SSE_EVENT_DELIMITER`) — confirm it correctly handles `\r\n\r\n`, `\n\n`, and `\r\r` per the SSE spec (RFC 8895).
-  - Study `EventSource` polyfill options for React Native (`react-native-event-source`, `expo-event-source`) vs manual fetch stream parsing.
-
-- [ ] **T-06-P2 — Research: SSE antipatterns**
-  - Antipattern: Splitting the response body string by `"\n"` — individual chunks are not line-delimited; a single event may span multiple chunks or a chunk may contain multiple events.
-  - Antipattern: Calling `JSON.parse` on a line that begins with `data: ` without stripping the prefix first.
-  - Antipattern: `useEffect(() => { fetchData() }, [])` when `fetchData` captures state via closure — stale closure causes the effect to reference an outdated function.
-  - Antipattern: Abandoning the generated `useGetOpenaiConversations` hook for raw fetch — loses caching, deduplication, and background refetch.
-
-- [ ] **T-06-1 — Extract SSE parser into shared lib utility**
-  - File: `lib/api-client-react/src/sse-parser.ts` (new file)
-  - Port the delimiter-based parser from `useVoiceStream.ts`; export `parseSseChunk(buffer: string, chunk: string): { events: string[], remaining: string }`.
-
-- [ ] **T-06-2 — Refactor chat tab SSE consumer to use shared parser**
-  - File: `artifacts/mobile/app/(tabs)/index.tsx`
-  - Replace the `split("\n")` approach with the shared `parseSseChunk` utility.
-
-- [ ] **T-06-3 — Fix `useEffect` missing dependency**
-  - File: `artifacts/mobile/app/(tabs)/index.tsx`
-  - Wrap `startNewConversation` in `useCallback` in `AppContext` and add it to the `useEffect` dependency array.
-
-- [ ] **T-06-4 — Replace raw `fetch` in `loadConversation` with React Query**
-  - File: `artifacts/mobile/app/(tabs)/index.tsx`
-  - Use `useGetOpenaiConversationMessages` hook from `@workspace/api-client-react`.
-
----
-
-<a id="t-07"></a>
-
 ## [ ] T-07 — Email Feature Completeness & UX Integrity
 
 **Status:** `NOT_STARTED`
@@ -1220,3 +1157,4 @@ process.exit(0) — clean exit
 ---
 
 _End of TODO.md — 20 parent tasks · 38 tracked issues · ~90 subtasks_
+```
