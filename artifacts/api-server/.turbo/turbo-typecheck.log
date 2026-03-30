@@ -2,6 +2,7 @@
 > @workspace/api-server@0.0.0 typecheck C:\Users\trevo\OneDrive\Desktop\Intelli-Task-Hub\artifacts\api-server
 > tsc -p tsconfig.json --noEmit
 
+src/index.ts(5,10): error TS2305: Module '"@workspace/db"' has no exported member 'closePool'.
 src/routes/health.ts(2,37): error TS6305: Output file 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/api-zod/dist/index.d.ts' has not been built from source file 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/api-zod/src/index.ts'.
 src/routes/openai/conversations.ts(11,8): error TS6305: Output file 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/api-zod/dist/index.d.ts' has not been built from source file 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/api-zod/src/index.ts'.
 src/routes/openai/conversations.ts(12,24): error TS6305: Output file 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/integrations-openai-ai-server/dist/index.d.ts' has not been built from source file 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/integrations-openai-ai-server/src/index.ts'.

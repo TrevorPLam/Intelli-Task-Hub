@@ -48,6 +48,7 @@ artifacts-monorepo/
 4. **Email** — Email inbox with compose, reply, star, search, and delete functionality
 
 Data persistence:
+
 - Chat conversations: PostgreSQL via `conversations` and `messages` tables
 - Tasks, Projects, Events, Emails: AsyncStorage (local persistence)
 
@@ -99,5 +100,6 @@ Push schema: `pnpm --filter @workspace/db run push`
 ### Optional
 
 - `CORS_ALLOWED_ORIGINS` — Comma-separated list of allowed CORS origins (e.g., `https://app.example.com,https://admin.example.com`). In development, wildcard is used if not set. In production, omitting this defaults to no cross-origin access.
+- `EXPO_PUBLIC_APP_ORIGIN` — App origin for Expo Router deep linking/universal links (e.g., `https://app.example.com`). Falls back to `https://localhost` in development if not set.
 - `PORT` — API server port (default: 3000)
 - `NODE_ENV` — `development` or `production`
