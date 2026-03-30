@@ -237,6 +237,7 @@ export default function ChatScreen() {
     {
       query: {
         enabled: !!conversationId,
+        queryKey: ["conversation", conversationId],
       },
     }
   );

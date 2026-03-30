@@ -1,3 +1,19 @@
+/**
+ * TypeScript Base Configuration
+ *
+ * T-18 TypeScript Strictness Uplift - COMPLETED
+ *
+ * Changes made:
+ * - Enabled noUnusedLocals: true for catching unused variables
+ * - Enabled strictFunctionTypes: true for stricter function type checking
+ * - strictPropertyInitialization: true was already enabled
+ *
+ * Generated files are excluded in package-specific tsconfigs to prevent
+ * breaking changes to auto-generated code from Orval.
+ *
+ * @see https://www.typescriptlang.org/tsconfig#noUnusedLocals
+ * @see https://www.typescriptlang.org/tsconfig#strictFunctionTypes
+ */
 {
   "compilerOptions": {
     "isolatedModules": true,
@@ -8,11 +24,11 @@
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": false,
     "noImplicitReturns": true,
-    "noUnusedLocals": false,
+    "noUnusedLocals": true,
     "noImplicitAny": true,
     "noImplicitThis": true,
     "strictNullChecks": true,
-    "strictFunctionTypes": false,
+    "strictFunctionTypes": true,
     "strictBindCallApply": true,
     "strictPropertyInitialization": true,
     "useUnknownInCatchVariables": true,

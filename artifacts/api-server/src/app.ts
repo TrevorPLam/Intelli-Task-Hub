@@ -18,7 +18,9 @@ function parseCorsOrigins(): string[] | boolean {
 
   // Require explicit allowlist in production
   if (!allowedOrigins) {
-    logger.warn("CORS_ALLOWED_ORIGINS not set, defaulting to no cross-origin access");
+    logger.warn(
+      "CORS_ALLOWED_ORIGINS not set, defaulting to no cross-origin access"
+    );
     return false;
   }
 
@@ -64,10 +66,20 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Request-ID"],
-    exposedHeaders: ["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Retry-After"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-API-Key",
+      "X-Request-ID",
+    ],
+    exposedHeaders: [
+      "X-RateLimit-Limit",
+      "X-RateLimit-Remaining",
+      "X-RateLimit-Reset",
+      "Retry-After",
+    ],
     maxAge: 86400, // Cache preflight for 24 hours
-  }),
+  })
 );
 
 // Add Vary: Origin header when using dynamic origin validation
@@ -95,12 +107,59 @@ app.use(
         };
       },
     },
-  }),
+  })
 );
 app.use(verifyApiKey);
 app.use(express.json({ limit: "64kb" }));
 app.use(express.urlencoded({ limit: "64kb", extended: false }));
 
 app.use("/api", router);
+
+// ============================================================================
+// Global Error Handler (Last Middleware)
+// ============================================================================
+app.use(
+  (
+    err: Error,
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) => {
+    // Generate unique error ID for correlation
+    const errorId = crypto.randomUUID();
+
+    // Log error with full context using Pino
+    logger.error(
+      {
+        errorId,
+        err: {
+          name: err.name,
+          message: err.message,
+          stack: err.stack,
+        },
+        req: {
+          method: req.method,
+          url: req.url?.split("?")[0],
+          path: req.path,
+          userAgent: req.get("User-Agent"),
+          ip: req.ip,
+        },
+      },
+      "Unhandled route error"
+    );
+
+    // Don't expose sensitive error details in production
+    const isDevelopment = process.env.NODE_ENV === "development";
+
+    res.status(500).json({
+      error: "Internal server error",
+      errorId: isDevelopment ? errorId : undefined,
+      ...(isDevelopment && {
+        message: err.message,
+        stack: err.stack,
+      }),
+    });
+  }
+);
 
 export default app;

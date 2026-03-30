@@ -24,7 +24,7 @@ export const ListOpenaiConversationsResponseItem = zod.object({
   createdAt: zod.coerce.date(),
 });
 export const ListOpenaiConversationsResponse = zod.array(
-  ListOpenaiConversationsResponseItem,
+  ListOpenaiConversationsResponseItem
 );
 
 /**
@@ -52,7 +52,7 @@ export const GetOpenaiConversationResponse = zod.object({
       role: zod.string(),
       content: zod.string(),
       createdAt: zod.coerce.date(),
-    }),
+    })
   ),
 });
 
@@ -78,7 +78,7 @@ export const ListOpenaiMessagesResponseItem = zod.object({
   createdAt: zod.coerce.date(),
 });
 export const ListOpenaiMessagesResponse = zod.array(
-  ListOpenaiMessagesResponseItem,
+  ListOpenaiMessagesResponseItem
 );
 
 /**

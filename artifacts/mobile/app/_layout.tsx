@@ -17,6 +17,7 @@ import * as SecureStore from "expo-secure-store";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppProvider } from "@/context/AppContext";
+import * as Constants from "expo-constants";
 
 // API Configuration
 // Supports both EXPO_PUBLIC_API_KEY (dev) and SecureStore (production)
@@ -45,6 +46,53 @@ SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
+// Error reporting function
+function handleError(error: Error, componentStack: string) {
+  // Generate unique error ID for user reference
+  const errorId = crypto.randomUUID();
+
+  // Get device identifier for correlation
+  const deviceId = "mobile-device"; // Simple fallback for now
+
+  // Log error with full context in development
+  if (__DEV__) {
+    console.error(`[${errorId}] React Error Boundary caught an error:`, {
+      error: error.message,
+      stack: error.stack,
+      componentStack,
+      deviceId,
+      timestamp: new Date().toISOString(),
+    });
+  } else {
+    // In production, you would send this to an error reporting service
+    // For now, we'll log to console with structured format
+    console.error(
+      JSON.stringify({
+        errorId,
+        message: error.message,
+        stack: error.stack,
+        componentStack,
+        deviceId,
+        timestamp: new Date().toISOString(),
+        platform: "mobile",
+      })
+    );
+  }
+
+  // Store error ID for potential user support
+  try {
+    SecureStore.setItemAsync(
+      `last_error_${errorId}`,
+      JSON.stringify({
+        message: error.message,
+        timestamp: new Date().toISOString(),
+      })
+    );
+  } catch {
+    // Silent fail if SecureStore is unavailable
+  }
+}
+
 function RootLayoutNav() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
@@ -71,7 +119,7 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <ErrorBoundary>
+      <ErrorBoundary onError={handleError}>
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>

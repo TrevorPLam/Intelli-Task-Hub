@@ -10,15 +10,22 @@ import {
   Text,
   View,
   useColorScheme,
+  Share,
+  Clipboard,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export type ErrorFallbackProps = {
   error: Error;
   resetError: () => void;
+  errorId?: string;
 };
 
-export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
+export function ErrorFallback({
+  error,
+  resetError,
+  errorId,
+}: ErrorFallbackProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const insets = useSafeAreaInsets();
@@ -49,6 +56,35 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
       details += `Stack Trace:\n${error.stack}`;
     }
     return details;
+  };
+
+  const copyErrorId = async () => {
+    if (!errorId) return;
+
+    try {
+      await Clipboard.setString(errorId);
+      // In a real app, you might show a toast here
+      if (__DEV__) {
+        console.log(`Error ID ${errorId} copied to clipboard`);
+      }
+    } catch (err) {
+      console.error("Failed to copy error ID:", err);
+    }
+  };
+
+  const shareErrorReport = async () => {
+    if (!errorId) return;
+
+    try {
+      const errorReport = `Error ID: ${errorId}\nError: ${error.message}\n\nPlease share this ID with support for assistance.`;
+
+      await Share.share({
+        message: errorReport,
+        title: "Error Report",
+      });
+    } catch (err) {
+      console.error("Failed to share error report:", err);
+    }
   };
 
   const monoFont = Platform.select({
@@ -85,6 +121,49 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
         <Text style={[styles.message, { color: theme.textSecondary }]}>
           Please reload the app to continue.
         </Text>
+
+        {errorId && (
+          <View style={styles.errorIdContainer}>
+            <Text style={[styles.errorIdLabel, { color: theme.textSecondary }]}>
+              Error ID:
+            </Text>
+            <Text style={[styles.errorId, { color: theme.text }]}>
+              {errorId}
+            </Text>
+            <View style={styles.errorIdActions}>
+              <Pressable
+                onPress={copyErrorId}
+                style={({ pressed }) => [
+                  styles.errorIdButton,
+                  {
+                    backgroundColor: theme.backgroundSecondary,
+                    opacity: pressed ? 0.8 : 1,
+                  },
+                ]}
+              >
+                <Feather name="copy" size={16} color={theme.text} />
+                <Text style={[styles.errorIdButtonText, { color: theme.text }]}>
+                  Copy
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={shareErrorReport}
+                style={({ pressed }) => [
+                  styles.errorIdButton,
+                  {
+                    backgroundColor: theme.backgroundSecondary,
+                    opacity: pressed ? 0.8 : 1,
+                  },
+                ]}
+              >
+                <Feather name="share-2" size={16} color={theme.text} />
+                <Text style={[styles.errorIdButtonText, { color: theme.text }]}>
+                  Share
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         <Pressable
           onPress={handleRestart}
@@ -282,5 +361,46 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     width: "100%",
+  },
+  errorIdContainer: {
+    alignItems: "center",
+    gap: 8,
+    marginTop: 8,
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    width: "100%",
+  },
+  errorIdLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginBottom: 4,
+  },
+  errorId: {
+    fontSize: 14,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    backgroundColor: "rgba(0, 0, 0, 0.1)",
+    padding: 8,
+    borderRadius: 4,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  errorIdActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  errorIdButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    minWidth: 80,
+    justifyContent: "center",
+  },
+  errorIdButtonText: {
+    fontSize: 12,
+    fontWeight: "500",
   },
 });

@@ -1,0 +1,18 @@
+
+> @workspace/integrations-openai-ai-react@0.0.0 typecheck C:\Users\trevo\OneDrive\Desktop\Intelli-Task-Hub\lib\integrations-openai-ai-react
+> tsc --noEmit
+
+src/audio/useAudioPlayback.ts(6,47): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+src/audio/useVoiceRecorder.ts(5,47): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+src/audio/useVoiceStream.ts(1,48): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+src/index.ts(1,66): error TS6307: File 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/integrations-openai-ai-react/src/audio/audio-utils.ts' is not listed within the file list of project 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/integrations-openai-ai-react/tsconfig.json'. Projects must list all files or use an 'include' pattern.
+  The file is in the program because:
+    Imported via "./audio/audio-utils" from file 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/integrations-openai-ai-react/src/index.ts'
+    Imported via "./audio-utils" from file 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/integrations-openai-ai-react/src/audio/useAudioPlayback.ts'
+src/index.ts(2,55): error TS6307: File 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/integrations-openai-ai-react/src/audio/useVoiceRecorder.ts' is not listed within the file list of project 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/integrations-openai-ai-react/tsconfig.json'. Projects must list all files or use an 'include' pattern.
+src/index.ts(3,54): error TS6307: File 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/integrations-openai-ai-react/src/audio/useAudioPlayback.ts' is not listed within the file list of project 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/integrations-openai-ai-react/tsconfig.json'. Projects must list all files or use an 'include' pattern.
+  The file is in the program because:
+    Imported via "./audio/useAudioPlayback" from file 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/integrations-openai-ai-react/src/index.ts'
+    Imported via "./useAudioPlayback" from file 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/integrations-openai-ai-react/src/audio/useVoiceStream.ts'
+src/index.ts(4,32): error TS6307: File 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/integrations-openai-ai-react/src/audio/useVoiceStream.ts' is not listed within the file list of project 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/integrations-openai-ai-react/tsconfig.json'. Projects must list all files or use an 'include' pattern.
+ ELIFECYCLE  Command failed with exit code 2.

@@ -140,7 +140,29 @@ paths:
         "200":
           description: SSE stream of assistant text chunks
           content:
-            text/event-stream: {}
+            text/event-stream:
+              schema:
+                type: object
+                description: Server-sent event containing streaming message content
+                required: [data]
+                properties:
+                  data:
+                    oneOf:
+                      - type: object
+                        description: Content chunk event
+                        required: [content]
+                        properties:
+                          content:
+                            type: string
+                            description: Partial text content from the assistant
+                      - type: object
+                        description: Stream completion event
+                        required: [done]
+                        properties:
+                          done:
+                            type: boolean
+                            const: true
+                            description: Indicates the stream has finished
   /openai/generate-image:
     post:
       operationId: generateOpenaiImage

@@ -59,3 +59,20 @@ export interface GenerateOpenaiImageResponse {
 export interface OpenaiError {
   error: string;
 }
+
+export type SendOpenaiMessage200Data =
+  | {
+      /** Partial text content from the assistant */
+      content: string;
+    }
+  | {
+      /** Indicates the stream has finished */
+      done: true;
+    };
+
+/**
+ * Server-sent event containing streaming message content
+ */
+export type SendOpenaiMessage200 = {
+  data: SendOpenaiMessage200Data;
+};

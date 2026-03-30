@@ -25,6 +25,7 @@ import type {
   OpenaiConversationWithMessages,
   OpenaiError,
   OpenaiMessage,
+  SendOpenaiMessage200,
   SendOpenaiMessageBody,
 } from "./api.schemas";
 
@@ -46,7 +47,7 @@ export const getHealthCheckUrl = () => {
 };
 
 export const healthCheck = async (
-  options?: RequestInit,
+  options?: RequestInit
 ): Promise<HealthStatus> => {
   return customFetch<HealthStatus>(getHealthCheckUrl(), {
     ...options,
@@ -121,7 +122,7 @@ export const getListOpenaiConversationsUrl = () => {
 };
 
 export const listOpenaiConversations = async (
-  options?: RequestInit,
+  options?: RequestInit
 ): Promise<OpenaiConversation[]> => {
   return customFetch<OpenaiConversation[]>(getListOpenaiConversationsUrl(), {
     ...options,
@@ -198,7 +199,7 @@ export const getCreateOpenaiConversationUrl = () => {
 
 export const createOpenaiConversation = async (
   createOpenaiConversationBody: CreateOpenaiConversationBody,
-  options?: RequestInit,
+  options?: RequestInit
 ): Promise<OpenaiConversation> => {
   return customFetch<OpenaiConversation>(getCreateOpenaiConversationUrl(), {
     ...options,
@@ -285,14 +286,14 @@ export const getGetOpenaiConversationUrl = (id: number) => {
 
 export const getOpenaiConversation = async (
   id: number,
-  options?: RequestInit,
+  options?: RequestInit
 ): Promise<OpenaiConversationWithMessages> => {
   return customFetch<OpenaiConversationWithMessages>(
     getGetOpenaiConversationUrl(id),
     {
       ...options,
       method: "GET",
-    },
+    }
   );
 };
 
@@ -312,7 +313,7 @@ export const getGetOpenaiConversationQueryOptions = <
       TData
     >;
     request?: SecondParameter<typeof customFetch>;
-  },
+  }
 ) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
@@ -356,7 +357,7 @@ export function useGetOpenaiConversation<
       TData
     >;
     request?: SecondParameter<typeof customFetch>;
-  },
+  }
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetOpenaiConversationQueryOptions(id, options);
 
@@ -376,7 +377,7 @@ export const getDeleteOpenaiConversationUrl = (id: number) => {
 
 export const deleteOpenaiConversation = async (
   id: number,
-  options?: RequestInit,
+  options?: RequestInit
 ): Promise<void> => {
   return customFetch<void>(getDeleteOpenaiConversationUrl(id), {
     ...options,
@@ -460,7 +461,7 @@ export const getListOpenaiMessagesUrl = (id: number) => {
 
 export const listOpenaiMessages = async (
   id: number,
-  options?: RequestInit,
+  options?: RequestInit
 ): Promise<OpenaiMessage[]> => {
   return customFetch<OpenaiMessage[]>(getListOpenaiMessagesUrl(id), {
     ...options,
@@ -484,7 +485,7 @@ export const getListOpenaiMessagesQueryOptions = <
       TData
     >;
     request?: SecondParameter<typeof customFetch>;
-  },
+  }
 ) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
@@ -527,7 +528,7 @@ export function useListOpenaiMessages<
       TData
     >;
     request?: SecondParameter<typeof customFetch>;
-  },
+  }
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getListOpenaiMessagesQueryOptions(id, options);
 
@@ -548,9 +549,9 @@ export const getSendOpenaiMessageUrl = (id: number) => {
 export const sendOpenaiMessage = async (
   id: number,
   sendOpenaiMessageBody: SendOpenaiMessageBody,
-  options?: RequestInit,
-): Promise<unknown> => {
-  return customFetch<unknown>(getSendOpenaiMessageUrl(id), {
+  options?: RequestInit
+): Promise<SendOpenaiMessage200> => {
+  return customFetch<SendOpenaiMessage200>(getSendOpenaiMessageUrl(id), {
     ...options,
     method: "POST",
     headers: { "Content-Type": "application/json", ...options?.headers },
@@ -634,7 +635,7 @@ export const getGenerateOpenaiImageUrl = () => {
 
 export const generateOpenaiImage = async (
   generateOpenaiImageBody: GenerateOpenaiImageBody,
-  options?: RequestInit,
+  options?: RequestInit
 ): Promise<GenerateOpenaiImageResponse> => {
   return customFetch<GenerateOpenaiImageResponse>(getGenerateOpenaiImageUrl(), {
     ...options,

@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { timingSafeEqual, scryptSync } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
 
 /**
  * @file Authentication middleware for API server
@@ -36,7 +36,10 @@ function extractApiKey(req: Request): string | null {
 
   // Fall back to Authorization header with Bearer scheme
   const authHeader = req.headers["authorization"];
-  if (typeof authHeader === "string" && authHeader.toLowerCase().startsWith("bearer ")) {
+  if (
+    typeof authHeader === "string" &&
+    authHeader.toLowerCase().startsWith("bearer ")
+  ) {
     return authHeader.slice(7).trim();
   }
 
@@ -68,7 +71,7 @@ function constantTimeCompare(a: Buffer, b: Buffer): boolean {
 export function verifyApiKey(
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ): void {
   if (!expectedKeyBuffer) {
     res.status(500).json({
@@ -83,7 +86,8 @@ export function verifyApiKey(
   if (!apiKey) {
     res.status(401).json({
       error: "Unauthorized",
-      message: "API key required. Provide via X-API-Key header or Authorization: Bearer <token>",
+      message:
+        "API key required. Provide via X-API-Key header or Authorization: Bearer <token>",
     });
     return;
   }
