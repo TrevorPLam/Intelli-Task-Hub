@@ -24,6 +24,11 @@ const envSchema = z.object({
   API_SECRET_KEY: z
     .string()
     .min(32, "API_SECRET_KEY must be at least 32 characters long"),
+  // Rate limiting configuration (optional, with safe defaults)
+  RATE_LIMIT_GENERAL_WINDOW_MS: z.string().optional(),
+  RATE_LIMIT_GENERAL_MAX: z.string().optional(),
+  RATE_LIMIT_OPENAI_WINDOW_MS: z.string().optional(),
+  RATE_LIMIT_OPENAI_MAX: z.string().optional(),
 });
 
 // Parse and validate environment variables

@@ -87,3 +87,17 @@ OpenAI server-side client (chat completions, images, audio). Uses `AI_INTEGRATIO
 PostgreSQL is provisioned. Schema has `conversations` and `messages` tables.
 
 Push schema: `pnpm --filter @workspace/db run push`
+
+## Environment Variables
+
+### Required
+
+- `DATABASE_URL` — PostgreSQL connection string
+- `AI_INTEGRATIONS_OPENAI_API_KEY` — OpenAI API key (auto-provisioned on Replit)
+- `API_SECRET_KEY` — JWT/API key for authenticating requests (min 32 chars)
+
+### Optional
+
+- `CORS_ALLOWED_ORIGINS` — Comma-separated list of allowed CORS origins (e.g., `https://app.example.com,https://admin.example.com`). In development, wildcard is used if not set. In production, omitting this defaults to no cross-origin access.
+- `PORT` — API server port (default: 3000)
+- `NODE_ENV` — `development` or `production`

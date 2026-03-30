@@ -4,8 +4,13 @@ import { eq, asc } from "drizzle-orm";
 import {
   CreateOpenaiConversationBody,
   SendOpenaiMessageBody,
+  GetOpenaiConversationParams,
+  DeleteOpenaiConversationParams,
+  ListOpenaiMessagesParams,
+  SendOpenaiMessageParams,
 } from "@workspace/api-zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { parseParams, parseBody, createError } from "../../lib/validate";
 
 const router: IRouter = Router();
 
@@ -18,22 +23,32 @@ router.get("/", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  const body = CreateOpenaiConversationBody.parse(req.body);
+  const bodyResult = parseBody(CreateOpenaiConversationBody, req.body);
+  if (!bodyResult.success) {
+    res.status(400).json(bodyResult.error);
+    return;
+  }
+  const { title } = bodyResult.data;
   const [conversation] = await db
     .insert(conversations)
-    .values({ title: body.title })
+    .values({ title })
     .returning();
   res.status(201).json(conversation);
 });
 
 router.get("/:id", async (req, res) => {
-  const id = Number(req.params.id);
+  const paramsResult = parseParams(GetOpenaiConversationParams, req.params);
+  if (!paramsResult.success) {
+    res.status(400).json(paramsResult.error);
+    return;
+  }
+  const { id } = paramsResult.data;
   const [conversation] = await db
     .select()
     .from(conversations)
     .where(eq(conversations.id, id));
   if (!conversation) {
-    res.status(404).json({ error: "Conversation not found" });
+    res.status(404).json(createError(404, "NOT_FOUND", "Conversation not found"));
     return;
   }
   const msgs = await db
@@ -45,22 +60,32 @@ router.get("/:id", async (req, res) => {
 });
 
 router.delete("/:id", async (req, res) => {
-  const id = Number(req.params.id);
+  const paramsResult = parseParams(DeleteOpenaiConversationParams, req.params);
+  if (!paramsResult.success) {
+    res.status(400).json(paramsResult.error);
+    return;
+  }
+  const { id } = paramsResult.data;
   const [conversation] = await db
     .select()
     .from(conversations)
     .where(eq(conversations.id, id));
   if (!conversation) {
-    res.status(404).json({ error: "Conversation not found" });
+    res.status(404).json(createError(404, "NOT_FOUND", "Conversation not found"));
     return;
   }
-  await db.delete(messages).where(eq(messages.conversationId, id));
+  // Cascade delete handled by Drizzle FK constraint (onDelete: cascade)
   await db.delete(conversations).where(eq(conversations.id, id));
   res.status(204).send();
 });
 
 router.get("/:id/messages", async (req, res) => {
-  const id = Number(req.params.id);
+  const paramsResult = parseParams(ListOpenaiMessagesParams, req.params);
+  if (!paramsResult.success) {
+    res.status(400).json(paramsResult.error);
+    return;
+  }
+  const { id } = paramsResult.data;
   const msgs = await db
     .select()
     .from(messages)
@@ -70,22 +95,34 @@ router.get("/:id/messages", async (req, res) => {
 });
 
 router.post("/:id/messages", async (req, res) => {
-  const id = Number(req.params.id);
-  const body = SendOpenaiMessageBody.parse(req.body);
+  // Pre-flight validation before setting SSE headers
+  const paramsResult = parseParams(SendOpenaiMessageParams, req.params);
+  if (!paramsResult.success) {
+    res.status(400).json(paramsResult.error);
+    return;
+  }
+  const { id } = paramsResult.data;
+
+  const bodyResult = parseBody(SendOpenaiMessageBody, req.body);
+  if (!bodyResult.success) {
+    res.status(400).json(bodyResult.error);
+    return;
+  }
+  const { content } = bodyResult.data;
 
   const [conversation] = await db
     .select()
     .from(conversations)
     .where(eq(conversations.id, id));
   if (!conversation) {
-    res.status(404).json({ error: "Conversation not found" });
+    res.status(404).json(createError(404, "NOT_FOUND", "Conversation not found"));
     return;
   }
 
   await db.insert(messages).values({
     conversationId: id,
     role: "user",
-    content: body.content,
+    content,
   });
 
   const history = await db
@@ -94,7 +131,7 @@ router.post("/:id/messages", async (req, res) => {
     .where(eq(messages.conversationId, id))
     .orderBy(asc(messages.createdAt));
 
-  const chatMessages = history.map((m) => ({
+  const chatMessages = history.map((m: typeof history[0]) => ({
     role: m.role as "user" | "assistant" | "system",
     content: m.content,
   }));

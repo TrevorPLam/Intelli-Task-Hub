@@ -1,0 +1,47 @@
+version: 2
+
+updates:
+  # Enable version updates for npm/pnpm
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "TrevorPLam"
+    assignees:
+      - "TrevorPLam"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps(dev)"
+      include: "scope"
+    groups:
+      # Group minor and patch updates together
+      minor-patch-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      # Group major updates separately for careful review
+      major-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "TrevorPLam"
+    commit-message:
+      prefix: "ci"
+      include: "scope"

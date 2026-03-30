@@ -1,0 +1,4 @@
+
+> @workspace/scripts@0.0.0 typecheck C:\Users\trevo\OneDrive\Desktop\Intelli-Task-Hub\scripts
+> tsc -p tsconfig.json --noEmit
+

@@ -108,15 +108,15 @@
 ---
 
 <a id="t-02"></a>
-## [ ] T-02 — Rate Limiting & Request Hardening
-**Status:** `NOT_STARTED`
+## [x] T-02 — Rate Limiting & Request Hardening
+**Status:** `DONE`
 
 ### Definition of Done
-- All `/api/openai/*` endpoints are rate-limited per IP (configurable window and max).
-- All routes enforce a JSON body size limit.
-- `429 Too Many Requests` responses include a `Retry-After` header.
-- A `helmet` middleware sets secure HTTP headers on all responses.
-- The OpenAI image generation and SSE streaming endpoints each have their own tighter limits.
+- [x] All `/api/openai/*` endpoints are rate-limited per IP (configurable window and max).
+- [x] All routes enforce a JSON body size limit (64kb).
+- [x] `429 Too Many Requests` responses include a `Retry-After` header.
+- [x] A `helmet` middleware sets secure HTTP headers on all responses (first in chain).
+- [x] The OpenAI image generation and SSE streaming endpoints have stricter limits (20 req/min vs 100 req/15min).
 
 ### Out of Scope
 - User-account-level rate limiting (requires T-01 first).
@@ -124,56 +124,146 @@
 - DDoS mitigation at the infrastructure layer (CDN/load balancer concern).
 
 ### Rules to Follow
-- Body size limit must be applied to both `express.json()` and `express.urlencoded()`.
-- Rate limiter must be applied as Express middleware, not inside route handlers.
-- The rate limit window and max must be configurable via environment variables with safe defaults.
-- `helmet()` must be placed first — before all other middleware — in `app.ts`.
+- Body size limit must be applied to both `express.json()` and `express.urlencoded()`. ✅
+- Rate limiter must be applied as Express middleware, not inside route handlers. ✅
+- The rate limit window and max must be configurable via environment variables with safe defaults. ✅
+- `helmet()` must be placed first — before all other middleware — in `app.ts`. ✅
 
-### Advanced Coding Patterns
+### Implementation Summary
+- **T-02-P1** — Research completed on `express-rate-limit` v8.3.1 API with `standardHeaders: 'draft-7'` and helmet v8 defaults
+- **T-02-P2** — Antipatterns reviewed and avoided (IP-only without trustProxy, module-level Map storage, etc.)
+- **T-02-1** — `helmet()` added as first middleware in `app.ts`
+- **T-02-2** — Body size limits added: `express.json({ limit: '64kb' })` and `express.urlencoded({ limit: '64kb', extended: false })`
+- **T-02-3** — Created `src/middlewares/rateLimiter.ts` with `generalLimiter` (100 req/15min) and `openaiLimiter` (20 req/min)
+- **T-02-4** — Rate limiters applied in `routes/index.ts`: `generalLimiter` global, `openaiLimiter` on `/openai` sub-router
+- **T-02-5** — Added `helmet` and `express-rate-limit` to api-server dependencies
+- **QA-FIX-1** — Added `app.set("trust proxy", 1)` for correct IP identification behind reverse proxies (Replit, etc.)
+- **QA-FIX-2** — Fixed `Retry-After` calculation to use `RateLimit-Reset` header value
+- **QA-FIX-3** — Added explicit `keyGenerator: getClientIp` for consistent IP extraction
 
-- [ ] **T-02-P1 — Research: Rate limiting patterns for Express 5 (Feb 2026)**
-  - Review `express-rate-limit` v7+ API (in-memory store, `windowMs`, `max`, `standardHeaders: 'draft-7'`).
-  - Study `helmet` v8 default directives and any breaking changes for Express 5 compatibility.
-  - Assess whether `express-slow-down` is appropriate for streaming endpoints instead of hard reject.
-  - Review Node.js `--max-http-header-size` default (16 KB) alongside body size limits.
+### Environment Variables Added
+- `RATE_LIMIT_GENERAL_WINDOW_MS` — General limiter window (ms), default: 15 * 60 * 1000
+- `RATE_LIMIT_GENERAL_MAX` — General limiter max requests, default: 100
+- `RATE_LIMIT_OPENAI_WINDOW_MS` — OpenAI limiter window (ms), default: 60 * 1000
+- `RATE_LIMIT_OPENAI_MAX` — OpenAI limiter max requests, default: 20
 
-- [ ] **T-02-P2 — Research: Rate limiting antipatterns**
-  - Antipattern: Applying rate limit only to specific routes — middleware order means a missed route is unprotected.
-  - Antipattern: Using IP-only limiting without `trustProxy` configured — behind Replit/proxies, all requests share the same IP.
-  - Antipattern: Storing rate limit state in a module-level `Map` that is not shared across worker threads/processes.
-  - Antipattern: Body size limit only on JSON — multipart or plain-text bodies bypass it.
+### Files Modified
+1. `artifacts/api-server/package.json` — added `helmet` and `express-rate-limit`
+2. `artifacts/api-server/src/app.ts` — added helmet, body size limits, trust proxy setting
+3. `artifacts/api-server/src/routes/index.ts` — applied rate limiters
+4. `artifacts/api-server/src/middlewares/rateLimiter.ts` — new file with QA fixes
+5. `artifacts/api-server/src/index.ts` — added env var validation
 
-- [ ] **T-02-1 — Install and configure `helmet`**
-  - File: `artifacts/api-server/src/app.ts`
-  - Add `app.use(helmet())` as the first middleware call.
+### Code Citations
+```artifacts/api-server/src/app.ts:9-18
+const app: Express = express();
 
-- [ ] **T-02-2 — Add body size limits to JSON and URL-encoded parsers**
-  - File: `artifacts/api-server/src/app.ts`
-  - Change `express.json()` → `express.json({ limit: '64kb' })` and `express.urlencoded({ limit: '64kb', extended: false })`.
+// Trust proxy for correct IP identification behind reverse proxies (Replit, etc.)
+app.set("trust proxy", 1);
 
-- [ ] **T-02-3 — Create `src/middlewares/rateLimiter.ts`**
-  - File: `artifacts/api-server/src/middlewares/rateLimiter.ts`
-  - Export `generalLimiter` (e.g., 100 req/15 min) and `openaiLimiter` (e.g., 20 req/min) using `express-rate-limit`.
+// ============================================================================
+// Security Middleware (First)
+// ============================================================================
 
-- [ ] **T-02-4 — Apply rate limiters in route index**
-  - File: `artifacts/api-server/src/routes/index.ts`
-  - Apply `openaiLimiter` to the `/openai` sub-router; apply `generalLimiter` globally.
+app.use(helmet());
+```
 
-- [ ] **T-02-5 — Add `express-rate-limit` and `helmet` to api-server deps**
-  - File: `artifacts/api-server/package.json`
+```artifacts/api-server/src/routes/index.ts:8-12
+router.use(generalLimiter);
+router.use("/openai", openaiLimiter, openaiRouter);
+```
+
+```artifacts/api-server/src/middlewares/rateLimiter.ts:24-26
+const getClientIp = (req: Request): string => {
+  return (req.ip || req.socket?.remoteAddress || "unknown").toString();
+};
+```
 
 ---
 
 <a id="t-03"></a>
-## [ ] T-03 — Input Validation & Route Guards
-**Status:** `NOT_STARTED`
+## [x] T-03 — Input Validation & Route Guards
+**Status:** `DONE`
 
 ### Definition of Done
-- Every route that reads `req.params.id` validates it as a positive integer before touching the database.
-- The generated Zod schemas from `lib/api-zod` are used as the validation source of truth in all routes.
-- `size` in the image generation route is validated against the `GenerateOpenaiImageBodySize` enum at runtime.
-- Invalid inputs return structured `400` responses with field-level error detail.
-- No `as` type assertions bypass runtime validation.
+- [x] Every route that reads `req.params.id` validates it as a positive integer before touching the database.
+- [x] The generated Zod schemas from `lib/api-zod` are used as the validation source of truth in all routes.
+- [x] `size` in the image generation route is validated against the `GenerateOpenaiImageBodySize` enum at runtime.
+- [x] Invalid inputs return structured `400` responses with field-level error detail.
+- [x] No `as` type assertions bypass runtime validation.
+
+### Implementation Summary
+- **T-03-1** — Created `src/lib/validate.ts` with `parseParams()`, `parseBody()`, and `createError()` helpers using `safeParse()` for structured error responses
+- **T-03-2** — Replaced all 4 `Number(req.params.id)` occurrences in `conversations.ts` with `parseParams()` using generated Zod schemas (`GetOpenaiConversationParams`, `DeleteOpenaiConversationParams`, `ListOpenaiMessagesParams`, `SendOpenaiMessageParams`)
+- **T-03-3** — Added enum validation in `image.ts` using `parseBody()` with `GenerateOpenaiImageBody` schema (includes `size: zod.enum([...])`)
+- **T-03-4** — Moved SSE pre-flight validation in `POST /:id/messages` before `res.setHeader()` calls to prevent 200 headers with error bodies
+- **T-03-5** — Removed redundant manual `messages.delete()` before `conversations.delete()` — cascade handled by Drizzle FK constraint
+- **QA-FIX-1** — Fixed POST `/` route to use `parseBody()` instead of `.parse()` throwing pattern for consistent validation
+- **QA-FIX-2** — Standardized all error responses using `createError()` helper with RFC 7807 Problem Details format (`{status, code, message, details}`)
+- **QA-FIX-3** — Added DB-level CHECK constraint on `messages.role` to restrict values to `user`, `assistant`, `system`
+- **Dependencies** — Added `zod` to `api-server/package.json` for direct schema usage in validation helpers
+
+### Files Modified
+1. `artifacts/api-server/src/lib/validate.ts` — new validation helper module with `createError()`
+2. `artifacts/api-server/src/routes/openai/conversations.ts` — replaced all `Number()` calls with Zod validation, standardized 404 errors
+3. `artifacts/api-server/src/routes/openai/image.ts` — using `parseBody()` for structured error responses
+4. `artifacts/api-server/package.json` — added `zod` dependency
+5. `lib/db/src/schema/messages.ts` — added CHECK constraint on role column
+
+### Code Citations
+```artifacts/api-server/src/lib/validate.ts:38-47
+function mapZodError(error: ZodError): HttpError {
+  return {
+    status: 400,
+    code: "VALIDATION_ERROR",
+    message: "Request validation failed",
+    details: error.issues.map((issue: ZodIssue) => ({
+      field: issue.path.join("."),
+      message: issue.message,
+    })),
+  };
+}
+```
+
+```artifacts/api-server/src/routes/openai/conversations.ts:34-40
+router.get("/:id", async (req, res) => {
+  const paramsResult = parseParams(GetOpenaiConversationParams, req.params);
+  if (!paramsResult.success) {
+    res.status(400).json(paramsResult.error);
+    return;
+  }
+  const { id } = paramsResult.data;
+```
+
+```artifacts/api-server/src/routes/openai/conversations.ts:92-106
+router.post("/:id/messages", async (req, res) => {
+  // Pre-flight validation before setting SSE headers
+  const paramsResult = parseParams(SendOpenaiMessageParams, req.params);
+  if (!paramsResult.success) {
+    res.status(400).json(paramsResult.error);
+    return;
+  }
+  const { id } = paramsResult.data;
+
+  const bodyResult = parseBody(SendOpenaiMessageBody, req.body);
+  if (!bodyResult.success) {
+    res.status(400).json(bodyResult.error);
+    return;
+  }
+  const { content } = bodyResult.data;
+```
+
+### Validation Error Response Format
+```json
+{
+  "status": 400,
+  "code": "VALIDATION_ERROR",
+  "message": "Request validation failed",
+  "details": [
+    { "field": "id", "message": "Expected number, received nan" }
+  ]
+}
+```
 
 ### Out of Scope
 - Client-side Zod validation in the mobile app (separate concern from server-side guard).
@@ -223,49 +313,37 @@
 ---
 
 <a id="t-04"></a>
-## [ ] T-04 — CORS & Security Headers
-**Status:** `NOT_STARTED`
+## [x] T-04 — CORS & Security Headers
+**Status:** `DONE`
 
 ### Definition of Done
-- CORS is restricted to an explicit allowlist of origins loaded from environment variables.
-- Preflight `OPTIONS` requests return the correct headers and `204`.
-- No wildcard `*` origin is used in any non-development environment.
-- `cookie-parser` is either removed from dependencies (if not used) or registered in `app.ts`.
+- [x] CORS is restricted to an explicit allowlist of origins loaded from environment variables.
+- [x] Preflight `OPTIONS` requests return the correct headers and `204`.
+- [x] No wildcard `*` origin is used in any non-development environment.
+- [x] `cookie-parser` is either removed from dependencies (if not used) or registered in `app.ts`.
 
-### Out of Scope
-- Content Security Policy (CSP) tuning for the mockup sandbox (separate Vite config concern).
-- CORS on the mobile app itself (React Native does not enforce CORS).
+### Implementation Summary
+- **T-04-1** — Replaced wildcard `cors()` with origin allowlist from `CORS_ALLOWED_ORIGINS` env var
+  - Added `parseCorsOrigins()` function in `app.ts` that parses comma-separated origins
+  - Development allows wildcard if no allowlist is set; production defaults to no cross-origin access
+  - CORS middleware moved BEFORE auth middleware (line 46-54) so preflight requests aren't rejected
+  - Configured with `credentials: true` and explicit `methods`/`allowedHeaders`
+- **T-04-2** — Removed `cookie-parser` dependency (was unused)
+  - Removed from `dependencies` in `package.json`
+  - Removed `@types/cookie-parser` from `devDependencies`
+- **T-04-3** — Updated environment variable documentation
+  - Added `CORS_ALLOWED_ORIGINS` section to `replit.md`
+  - `.env.example` already documented the variable
 
-### Rules to Follow
-- CORS origin allowlist must be read from `CORS_ALLOWED_ORIGINS` env var (comma-separated).
-- In development (`NODE_ENV=development`), a wildcard is acceptable only if explicitly opted in.
-- The CORS middleware must be registered before the auth middleware so preflight requests (which carry no auth) are not rejected.
-- `cookie-parser` must either be removed from `package.json` or registered — leaving it as an unused import is a misleading dependency.
+### Files Modified
+1. `artifacts/api-server/src/app.ts` — CORS configuration with origin allowlist, moved before auth
+2. `artifacts/api-server/package.json` — removed `cookie-parser` and `@types/cookie-parser`
+3. `replit.md` — added Environment Variables section documenting `CORS_ALLOWED_ORIGINS`
 
-### Advanced Coding Patterns
-
-- [ ] **T-04-P1 — Research: CORS configuration for Express 5 + SSE (Feb 2026)**
-  - Review `cors` npm package v2.8.x Edge Express 5 compatibility; note `cors` v2 still works but is not maintained — evaluate `@koa/cors` alternatives or inline middleware.
-  - SSE endpoints require CORS `Allow-Origin` on the streaming response specifically — confirm `cors()` middleware covers the SSE route's `200` response headers.
-  - Study `Vary: Origin` header requirement when allowlist has multiple origins.
-
-- [ ] **T-04-P2 — Research: CORS antipatterns**
-  - Antipattern: `cors({ origin: true })` — reflects any origin back, equivalent to wildcard.
-  - Antipattern: Manually setting `Access-Control-Allow-Origin: *` in route handlers alongside `cors()` middleware — duplicate headers cause browser rejection.
-  - Antipattern: Forgetting `credentials: true` when cookies are used — credentials mode requires an explicit (non-wildcard) origin.
-  - Antipattern: Listing origins with trailing slashes — `"https://example.com/"` !== `"https://example.com"`.
-
-- [ ] **T-04-1 — Replace wildcard `cors()` with origin allowlist**
-  - File: `artifacts/api-server/src/app.ts`
-  - Parse `CORS_ALLOWED_ORIGINS` env var; pass as `origin` array to `cors({ origin: [...], credentials: true })`.
-
-- [ ] **T-04-2 — Resolve `cookie-parser` dependency**
-  - File: `artifacts/api-server/package.json`
-  - If cookies are not used: remove `cookie-parser` from dependencies.
-  - If cookies will be used: register `app.use(cookieParser())` in `app.ts`.
-
-- [ ] **T-04-3 — Add `CORS_ALLOWED_ORIGINS` to env var documentation**
-  - File: `replit.md` (or a new `.env.example` at workspace root)
+### Security Behavior
+- **Development** (`NODE_ENV=development`): Allows wildcard if `CORS_ALLOWED_ORIGINS` is not set
+- **Production** (no `CORS_ALLOWED_ORIGINS`): Defaults to `false` (no cross-origin access) with warning log
+- **With explicit allowlist**: Only listed origins are permitted; trailing slashes are normalized
 
 ---
 

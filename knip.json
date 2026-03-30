@@ -1,0 +1,42 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    "lib/*": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "artifacts/api-server": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "artifacts/mobile": {
+      "entry": ["app/**/*.tsx", "app/**/*.ts"],
+      "project": ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}", "context/**/*.{ts,tsx}"]
+    },
+    "artifacts/mockup-sandbox": {
+      "entry": ["src/main.tsx"],
+      "project": ["src/**/*.{ts,tsx}"]
+    }
+  },
+  "ignore": [
+    "**/generated/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/.expo/**",
+    "**/.turbo/**",
+    "**/coverage/**",
+    "**/*.d.ts",
+    "vitest.config.ts",
+    "eslint.config.js",
+    "scripts/post-merge.sh"
+  ],
+  "ignoreDependencies": [
+    "@types/node",
+    "@types/react",
+    "@types/react-dom",
+    "typescript",
+    "vitest",
+    "@vitest/coverage-v8"
+  ],
+  "ignoreBinaries": ["sh"]
+}

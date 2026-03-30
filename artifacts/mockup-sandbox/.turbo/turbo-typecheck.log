@@ -1,0 +1,4 @@
+
+> @workspace/mockup-sandbox@0.0.0 typecheck C:\Users\trevo\OneDrive\Desktop\Intelli-Task-Hub\artifacts\mockup-sandbox
+> tsc -p tsconfig.json --noEmit
+
