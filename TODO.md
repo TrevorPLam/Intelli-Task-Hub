@@ -1,0 +1,1042 @@
+# Intelli-Task-Hub — Master TODO
+
+> Generated: March 30, 2026  
+> Updated: March 30, 2026 — Added T-21 through T-34 from second-pass deep analysis  
+> Source: Exhaustive multi-pass codebase analysis (52 tracked issues)  
+> Legend: `[ ]` not started · `[~]` in progress · `[x]` complete  
+> Status tags: `NOT_STARTED` · `IN_PROGRESS` · `BLOCKED` · `DONE`
+
+---
+
+## Table of Contents
+
+1. [T-01 — Authentication & Authorization Layer](#t-01)
+2. [T-02 — Rate Limiting & Request Hardening](#t-02)
+3. [T-03 — Input Validation & Route Guards](#t-03)
+4. [T-04 — CORS & Security Headers](#t-04)
+5. [T-05 — Graceful Shutdown & DB Connection Lifecycle](#t-05)
+6. [T-06 — SSE Robustness in Chat Tab](#t-06)
+7. [T-07 — Email Feature Completeness & UX Integrity](#t-07)
+8. [T-08 — Metro Monorepo Configuration](#t-08)
+9. [T-09 — Android Build Configuration](#t-09)
+10. [T-10 — Static File Server Hardening](#t-10)
+11. [T-11 — Environment Variable Portability](#t-11)
+12. [T-12 — OpenAI Integration Consolidation](#t-12)
+13. [T-13 — Audio Worklet Deployment & Documentation](#t-13)
+14. [T-14 — Error Observability Pipeline](#t-14)
+15. [T-15 — Database Schema Hardening](#t-15)
+16. [T-16 — Generated API Client Adoption](#t-16)
+17. [T-17 — Mockup Sandbox Bootstrap](#t-17)
+18. [T-18 — TypeScript Strictness Uplift](#t-18)
+19. [T-19 — Dead Code Elimination](#t-19)
+20. [T-20 — Post-Merge Automation & Git Hooks](#t-20)
+21. [T-21 — Testing Infrastructure](#t-21)
+22. [T-22 — Linting & Code Formatting Enforcement](#t-22)
+23. [T-23 — pnpm Workspace Patterns & tsconfig Reference Fixes](#t-23)
+24. [T-24 — API Response Standardization & Pagination](#t-24)
+25. [T-25 — Hardcoded AI Configuration Extraction](#t-25)
+26. [T-26 — Database Query Optimization & Connection Pooling](#t-26)
+27. [T-27 — SSRF Prevention & Request Timeout/Retry Strategy](#t-27)
+28. [T-28 — Landing Page Template Injection & XSS Prevention](#t-28)
+29. [T-29 — AsyncStorage Data Resilience](#t-29)
+30. [T-30 — Mobile Chat Performance & ID Generation](#t-30)
+31. [T-31 — Zod & OpenAPI Schema Completeness](#t-31)
+32. [T-32 — Audio Subsystem Memory & Error Safety](#t-32)
+33. [T-33 — Platform Portability & Build System Hardening](#t-33)
+34. [T-34 — Node/pnpm Engine Constraints & Dependency Hygiene](#t-34)
+
+---
+
+<a id="t-01"></a>
+## [x] T-01 — Authentication & Authorization Layer
+**Status:** `DONE`
+
+### Definition of Done
+- Every API route rejects unauthenticated requests with HTTP 401.
+- JWT or API-key identity is verified in a single Express middleware applied globally.
+- The mobile client injects credentials on every request through the custom-fetch layer.
+- A documented mechanism exists for key rotation without redeployment.
+- No credentials are logged by Pino at any log level.
+
+### Out of Scope
+- Multi-user account management, OAuth/OIDC flows, or password-based registration.
+- Role-based access control beyond owner/non-owner.
+- Session persistence beyond the lifetime of the signed token.
+
+### Rules to Follow
+- Secrets are read exclusively from environment variables; no hardcoded fallback values.
+- Auth middleware must be registered **before** any route handler in `app.ts`.
+- Token validation must be synchronous (HMAC-SHA256 / HS256) to avoid async errors swallowing middleware exceptions.
+- Pino redaction paths must include any header or body field containing auth tokens.
+- Prefer stateless tokens (JWT) so no server-side session store is required in this phase.
+
+### Advanced Coding Patterns
+
+- [x] **T-01-P1 — Research: Auth patterns for Express 5 + React Native (Feb 2026)**
+  - Study Express 5 async error propagation changes (errors thrown in `async` middleware are auto-forwarded to `next(err)` — no try/catch required).
+  - Review OWASP REST Security Cheat Sheet: token storage, `Authorization` header vs cookie, HTTPS-only.
+  - Research Expo SecureStore vs AsyncStorage for token persistence on-device (SecureStore uses iOS Keychain / Android Keystore; AsyncStorage is plaintext).
+  - Note: As of React Native 0.81 + Expo 54 (New Architecture), `expo-secure-store` v14+ requires the Expo Modules API — confirm compatibility.
+
+- [x] **T-01-P2 — Research: Auth antipatterns to avoid**
+  - Antipattern: Storing JWTs in AsyncStorage (XSS/environment extraction risk on web targets).
+  - Antipattern: Returning 403 for unauthenticated requests (correct code is 401; 403 means authenticated but forbidden).
+  - Antipattern: Global `app.use(authMiddleware)` placed after route registration — Express evaluates middleware in registration order.
+  - Antipattern: Logging the raw `Authorization` header before redaction is configured.
+  - Antipattern: Using `jsonwebtoken` `verify` without specifying `algorithms` array — allows algorithm confusion attacks.
+
+- [x] **T-01-1 — Create `src/middlewares/auth.ts` in api-server**
+  - File: `artifacts/api-server/src/middlewares/auth.ts`
+  - Implement `verifyApiKey(req, res, next)` middleware using `timingSafeEqual` from `node:crypto` for constant-time comparison.
+
+- [x] **T-01-2 — Register auth middleware globally in `app.ts`**
+  - File: `artifacts/api-server/src/app.ts`
+  - Add `app.use(authMiddleware)` immediately after Pino HTTP logger, before route mounting.
+
+- [x] **T-01-3 — Add `API_SECRET_KEY` to Pino redaction list**
+  - File: `artifacts/api-server/src/lib/logger.ts`
+  - Extend `redact.paths` to include `["req.headers.authorization", "req.headers['x-api-key']"]`.
+
+- [x] **T-01-4 — Inject auth header in custom-fetch client**
+  - File: `lib/api-client-react/src/custom-fetch.ts`
+  - The `getToken` hook already exists — verify it is wired and that `EXPO_PUBLIC_API_KEY` or SecureStore is used as the source. Replace AsyncStorage with `expo-secure-store` if needed.
+
+- [x] **T-01-5 — Validate `API_SECRET_KEY` env var at process start**
+  - File: `artifacts/api-server/src/index.ts`
+  - Add startup Zod env validation that throws (preventing server start) if `API_SECRET_KEY` is absent or shorter than 32 characters.
+
+---
+
+<a id="t-02"></a>
+## [ ] T-02 — Rate Limiting & Request Hardening
+**Status:** `NOT_STARTED`
+
+### Definition of Done
+- All `/api/openai/*` endpoints are rate-limited per IP (configurable window and max).
+- All routes enforce a JSON body size limit.
+- `429 Too Many Requests` responses include a `Retry-After` header.
+- A `helmet` middleware sets secure HTTP headers on all responses.
+- The OpenAI image generation and SSE streaming endpoints each have their own tighter limits.
+
+### Out of Scope
+- User-account-level rate limiting (requires T-01 first).
+- Redis-backed distributed rate limiting across multiple server instances.
+- DDoS mitigation at the infrastructure layer (CDN/load balancer concern).
+
+### Rules to Follow
+- Body size limit must be applied to both `express.json()` and `express.urlencoded()`.
+- Rate limiter must be applied as Express middleware, not inside route handlers.
+- The rate limit window and max must be configurable via environment variables with safe defaults.
+- `helmet()` must be placed first — before all other middleware — in `app.ts`.
+
+### Advanced Coding Patterns
+
+- [ ] **T-02-P1 — Research: Rate limiting patterns for Express 5 (Feb 2026)**
+  - Review `express-rate-limit` v7+ API (in-memory store, `windowMs`, `max`, `standardHeaders: 'draft-7'`).
+  - Study `helmet` v8 default directives and any breaking changes for Express 5 compatibility.
+  - Assess whether `express-slow-down` is appropriate for streaming endpoints instead of hard reject.
+  - Review Node.js `--max-http-header-size` default (16 KB) alongside body size limits.
+
+- [ ] **T-02-P2 — Research: Rate limiting antipatterns**
+  - Antipattern: Applying rate limit only to specific routes — middleware order means a missed route is unprotected.
+  - Antipattern: Using IP-only limiting without `trustProxy` configured — behind Replit/proxies, all requests share the same IP.
+  - Antipattern: Storing rate limit state in a module-level `Map` that is not shared across worker threads/processes.
+  - Antipattern: Body size limit only on JSON — multipart or plain-text bodies bypass it.
+
+- [ ] **T-02-1 — Install and configure `helmet`**
+  - File: `artifacts/api-server/src/app.ts`
+  - Add `app.use(helmet())` as the first middleware call.
+
+- [ ] **T-02-2 — Add body size limits to JSON and URL-encoded parsers**
+  - File: `artifacts/api-server/src/app.ts`
+  - Change `express.json()` → `express.json({ limit: '64kb' })` and `express.urlencoded({ limit: '64kb', extended: false })`.
+
+- [ ] **T-02-3 — Create `src/middlewares/rateLimiter.ts`**
+  - File: `artifacts/api-server/src/middlewares/rateLimiter.ts`
+  - Export `generalLimiter` (e.g., 100 req/15 min) and `openaiLimiter` (e.g., 20 req/min) using `express-rate-limit`.
+
+- [ ] **T-02-4 — Apply rate limiters in route index**
+  - File: `artifacts/api-server/src/routes/index.ts`
+  - Apply `openaiLimiter` to the `/openai` sub-router; apply `generalLimiter` globally.
+
+- [ ] **T-02-5 — Add `express-rate-limit` and `helmet` to api-server deps**
+  - File: `artifacts/api-server/package.json`
+
+---
+
+<a id="t-03"></a>
+## [ ] T-03 — Input Validation & Route Guards
+**Status:** `NOT_STARTED`
+
+### Definition of Done
+- Every route that reads `req.params.id` validates it as a positive integer before touching the database.
+- The generated Zod schemas from `lib/api-zod` are used as the validation source of truth in all routes.
+- `size` in the image generation route is validated against the `GenerateOpenaiImageBodySize` enum at runtime.
+- Invalid inputs return structured `400` responses with field-level error detail.
+- No `as` type assertions bypass runtime validation.
+
+### Out of Scope
+- Client-side Zod validation in the mobile app (separate concern from server-side guard).
+- Regenerating the Orval output (that is T-16's concern).
+
+### Rules to Follow
+- Validation must occur before any database query or OpenAI call.
+- Use `zodSchema.safeParse()` (not `.parse()`) to produce structured error responses instead of thrown exceptions.
+- Replace all `Number(req.params.id)` calls with the Zod `.coerce.number().int().positive()` schema.
+- After SSE headers are set in the streaming route, all validation must be pre-flight (before `res.writeHead`).
+- TypeScript `as` assertions used to satisfy types after validation are acceptable only if the Zod schema has already proven the shape.
+
+### Advanced Coding Patterns
+
+- [ ] **T-03-P1 — Research: Zod middleware patterns for Express 5 (Feb 2026)**
+  - Review `zod-express-middleware` or manual `req.params` parsing patterns compatible with Express 5's typed `Request`.
+  - Study Zod `discriminatedUnion` for SSE event payloads.
+  - Review OpenAPI 3.1 + Orval 8.x pipeline for generating server-side validators (not just client-side) — assess `orval` `zod` output mode for server validation use.
+  - Note: Express 5 makes route params strongly typed via generics — leverage `Request<{ id: string }>` for compile-time awareness.
+
+- [ ] **T-03-P2 — Research: Validation antipatterns**
+  - Antipattern: `Number(id)` — converts `""` to `0` and arrays to `NaN` silently.
+  - Antipattern: Catching Zod throw at top of route handler after SSE headers are already written — the client receives a 200 header followed by an error body it cannot parse.
+  - Antipattern: Using generated Zod types only on the client — the server route becomes the last line of defense and has no runtime schema.
+  - Antipattern: Returning raw Zod `.issues` array to API consumers — leaks internal schema structure; map to a stable error DTO.
+
+- [ ] **T-03-1 — Create `src/lib/validate.ts` param/body helper**
+  - File: `artifacts/api-server/src/lib/validate.ts`
+  - Export `parseParams(schema, params)` and `parseBody(schema, body)` returning `Result<T, HttpError>`.
+
+- [ ] **T-03-2 — Replace all `Number(req.params.id)` in conversations route**
+  - File: `artifacts/api-server/src/routes/openai/conversations.ts`
+  - Replace 4–5 occurrences with `parseParams(idSchema, req.params)`.
+
+- [ ] **T-03-3 — Add enum validation for `size` in image route**
+  - File: `artifacts/api-server/src/routes/openai/image.ts`
+  - Import `GenerateOpenaiImageBodySize` from `@workspace/api-zod`; validate `req.body.size` against it before calling OpenAI.
+
+- [ ] **T-03-4 — Move SSE pre-flight validation before `res.writeHead`**
+  - File: `artifacts/api-server/src/routes/openai/conversations.ts`
+  - Ensure Zod body parse for the `POST /:id/messages` route completes before `res.writeHead(200, sseHeaders)` is called.
+
+- [ ] **T-03-5 — Remove redundant manual cascade delete**
+  - File: `artifacts/api-server/src/routes/openai/conversations.ts`
+  - Remove manual message delete before conversation delete — the `onDelete: cascade` FK constraint in Drizzle handles this atomically.
+
+---
+
+<a id="t-04"></a>
+## [ ] T-04 — CORS & Security Headers
+**Status:** `NOT_STARTED`
+
+### Definition of Done
+- CORS is restricted to an explicit allowlist of origins loaded from environment variables.
+- Preflight `OPTIONS` requests return the correct headers and `204`.
+- No wildcard `*` origin is used in any non-development environment.
+- `cookie-parser` is either removed from dependencies (if not used) or registered in `app.ts`.
+
+### Out of Scope
+- Content Security Policy (CSP) tuning for the mockup sandbox (separate Vite config concern).
+- CORS on the mobile app itself (React Native does not enforce CORS).
+
+### Rules to Follow
+- CORS origin allowlist must be read from `CORS_ALLOWED_ORIGINS` env var (comma-separated).
+- In development (`NODE_ENV=development`), a wildcard is acceptable only if explicitly opted in.
+- The CORS middleware must be registered before the auth middleware so preflight requests (which carry no auth) are not rejected.
+- `cookie-parser` must either be removed from `package.json` or registered — leaving it as an unused import is a misleading dependency.
+
+### Advanced Coding Patterns
+
+- [ ] **T-04-P1 — Research: CORS configuration for Express 5 + SSE (Feb 2026)**
+  - Review `cors` npm package v2.8.x Edge Express 5 compatibility; note `cors` v2 still works but is not maintained — evaluate `@koa/cors` alternatives or inline middleware.
+  - SSE endpoints require CORS `Allow-Origin` on the streaming response specifically — confirm `cors()` middleware covers the SSE route's `200` response headers.
+  - Study `Vary: Origin` header requirement when allowlist has multiple origins.
+
+- [ ] **T-04-P2 — Research: CORS antipatterns**
+  - Antipattern: `cors({ origin: true })` — reflects any origin back, equivalent to wildcard.
+  - Antipattern: Manually setting `Access-Control-Allow-Origin: *` in route handlers alongside `cors()` middleware — duplicate headers cause browser rejection.
+  - Antipattern: Forgetting `credentials: true` when cookies are used — credentials mode requires an explicit (non-wildcard) origin.
+  - Antipattern: Listing origins with trailing slashes — `"https://example.com/"` !== `"https://example.com"`.
+
+- [ ] **T-04-1 — Replace wildcard `cors()` with origin allowlist**
+  - File: `artifacts/api-server/src/app.ts`
+  - Parse `CORS_ALLOWED_ORIGINS` env var; pass as `origin` array to `cors({ origin: [...], credentials: true })`.
+
+- [ ] **T-04-2 — Resolve `cookie-parser` dependency**
+  - File: `artifacts/api-server/package.json`
+  - If cookies are not used: remove `cookie-parser` from dependencies.
+  - If cookies will be used: register `app.use(cookieParser())` in `app.ts`.
+
+- [ ] **T-04-3 — Add `CORS_ALLOWED_ORIGINS` to env var documentation**
+  - File: `replit.md` (or a new `.env.example` at workspace root)
+
+---
+
+<a id="t-05"></a>
+## [ ] T-05 — Graceful Shutdown & DB Connection Lifecycle
+**Status:** `NOT_STARTED`
+
+### Definition of Done
+- The database connection pool is cleanly closed when the server receives `SIGTERM` or `SIGINT`.
+- In-flight HTTP requests are drained before the process exits.
+- The OpenAI API key is validated at startup; the server refuses to start if it is absent.
+- Shutdown sequence is logged via Pino.
+
+### Out of Scope
+- Kubernetes liveness/readiness probes or preStop hooks.
+- Zero-downtime rolling restarts.
+
+### Rules to Follow
+- `pool.end()` must be awaited; do not call `process.exit()` before it resolves.
+- `server.close()` must be called before `pool.end()` to stop accepting new connections first.
+- Startup validation must use `zod` to parse `process.env` and throw with a descriptive message on failure.
+- Handle both `SIGTERM` (container stop) and `SIGINT` (Ctrl+C in development).
+
+### Advanced Coding Patterns
+
+- [ ] **T-05-P1 — Research: Node.js graceful shutdown patterns (Feb 2026)**
+  - Study `server.closeAllConnections()` (Node 18.2+) — needed for HTTP keep-alive connections that `server.close()` alone doesn't terminate.
+  - Review `http-terminator` library vs manual `closeAllConnections` for Express 5.
+  - Study Zod env validation pattern: `const env = z.object({ ... }).parse(process.env)` at module top-level with `z.string().min(32)` for secret keys.
+  - Review `node:async_hooks` `AsyncLocalStorage` pattern if per-request context is added later.
+
+- [ ] **T-05-P2 — Research: Shutdown antipatterns**
+  - Antipattern: Calling `pool.end()` inside a `setImmediate` or `process.nextTick` — async context may be lost.
+  - Antipattern: Registering shutdown handlers inside a route module — they should be at the top-level process entry point only.
+  - Antipattern: Calling `process.exit(0)` synchronously from a signal handler before awaiting async cleanup.
+  - Antipattern: Validating env vars inside route handlers — by that point, a partial server is already running.
+
+- [ ] **T-05-1 — Add `process.on('SIGTERM'/'SIGINT')` shutdown handler**
+  - File: `artifacts/api-server/src/index.ts`
+  - Implement `async function shutdown()` that calls `server.close()` → `server.closeAllConnections()` → `pool.end()`.
+
+- [ ] **T-05-2 — Add startup Zod env validation**
+  - File: `artifacts/api-server/src/index.ts`
+  - Validate `DATABASE_URL`, `AI_INTEGRATIONS_OPENAI_API_KEY`, `API_SECRET_KEY` before creating the HTTP server.
+
+- [ ] **T-05-3 — Export `pool` shutdown from db package**
+  - File: `lib/db/src/index.ts`
+  - Export a `closePool(): Promise<void>` function to encapsulate `pool.end()` rather than exposing the pool object directly.
+
+---
+
+<a id="t-06"></a>
+## [ ] T-06 — SSE Robustness in Chat Tab
+**Status:** `NOT_STARTED`
+
+### Definition of Done
+- The chat tab's SSE consumer correctly handles chunk-boundary splits (multi-chunk events never produce a parse error).
+- The `useEffect` missing-dependency lint error is resolved.
+- Conversation loading reuses the generated React Query hooks instead of raw `fetch`.
+- The existing `useVoiceStream.ts` SSE parsing logic is extracted into a shared utility and reused.
+
+### Out of Scope
+- Replacing SSE with WebSockets.
+- Implementing conversation title editing (tracked separately under UX improvements).
+- Voice/audio streaming integration with the chat tab.
+
+### Rules to Follow
+- SSE parsing must buffer incomplete lines across chunks before attempting `JSON.parse`.
+- The shared SSE utility must be placed in `lib/` (not co-located in the mobile app) so it is reusable by both React Native and the mockup sandbox.
+- `useEffect` dependency arrays must be exhaustive; if `startNewConversation` changes identity on every render, it must be wrapped in `useCallback` first.
+- React Query's `useQuery` must be used for read operations (conversation list, conversation load); `useMutation` for message send.
+
+### Advanced Coding Patterns
+
+- [ ] **T-06-P1 — Research: SSE parsing in React Native (Feb 2026)**
+  - Study Expo's `expo/fetch` SSE implementation — as of SDK 54, `expo/fetch` supports `response.body` as a `ReadableStream` on the New Architecture; review `TextDecoderStream` availability on Hermes 0.81.
+  - Review the existing `useVoiceStream.ts` delimiter regex (`SSE_EVENT_DELIMITER`) — confirm it correctly handles `\r\n\r\n`, `\n\n`, and `\r\r` per the SSE spec (RFC 8895).
+  - Study `EventSource` polyfill options for React Native (`react-native-event-source`, `expo-event-source`) vs manual fetch stream parsing.
+
+- [ ] **T-06-P2 — Research: SSE antipatterns**
+  - Antipattern: Splitting the response body string by `"\n"` — individual chunks are not line-delimited; a single event may span multiple chunks or a chunk may contain multiple events.
+  - Antipattern: Calling `JSON.parse` on a line that begins with `data: ` without stripping the prefix first.
+  - Antipattern: `useEffect(() => { fetchData() }, [])` when `fetchData` captures state via closure — stale closure causes the effect to reference an outdated function.
+  - Antipattern: Abandoning the generated `useGetOpenaiConversations` hook for raw fetch — loses caching, deduplication, and background refetch.
+
+- [ ] **T-06-1 — Extract SSE parser into shared lib utility**
+  - File: `lib/api-client-react/src/sse-parser.ts` (new file)
+  - Port the delimiter-based parser from `useVoiceStream.ts`; export `parseSseChunk(buffer: string, chunk: string): { events: string[], remaining: string }`.
+
+- [ ] **T-06-2 — Refactor chat tab SSE consumer to use shared parser**
+  - File: `artifacts/mobile/app/(tabs)/index.tsx`
+  - Replace the `split("\n")` approach with the shared `parseSseChunk` utility.
+
+- [ ] **T-06-3 — Fix `useEffect` missing dependency**
+  - File: `artifacts/mobile/app/(tabs)/index.tsx`
+  - Wrap `startNewConversation` in `useCallback` in `AppContext` and add it to the `useEffect` dependency array.
+
+- [ ] **T-06-4 — Replace raw `fetch` in `loadConversation` with React Query**
+  - File: `artifacts/mobile/app/(tabs)/index.tsx`
+  - Use `useGetOpenaiConversationMessages` hook from `@workspace/api-client-react`.
+
+---
+
+<a id="t-07"></a>
+## [ ] T-07 — Email Feature Completeness & UX Integrity
+**Status:** `NOT_STARTED`
+
+### Definition of Done
+- Calling `sendEmail()` either performs a real send operation or is clearly disabled with a non-deceptive UI state (e.g., "Send" button is greyed out with a "Coming soon" tooltip).
+- The starred/unstarred email icon correctly shows a filled vs outline star based on `email.starred`.
+- No success Alert fires for a no-op operation.
+
+### Out of Scope
+- Implementing a real email sending backend (SMTP/SendGrid integration).
+- Email sync from an external inbox provider.
+- End-to-end email threading or reply chains.
+
+### Rules to Follow
+- Never show a success confirmation for an action that did not execute.
+- UI must reflect feature availability honestly — if a feature is not implemented, it should be visually disabled (opacity, disabled prop) not silently failing.
+- Icon library choice must provide both filled and outline variants for the same glyph. If `@expo/vector-icons` Feather lacks a filled star, use `FontAwesome` (`star` = filled, `star-o` = outline) or `MaterialIcons` (`star` / `star-border`).
+
+### Advanced Coding Patterns
+
+- [ ] **T-07-P1 — Research: Honest UI patterns for incomplete features (Feb 2026)**
+  - Research the "Progressive Disclosure" pattern for features under development — use `disabled` + `accessibilityHint` to communicate the limitation without removing the UI element.
+  - Review React Native `Pressable` `disabled` prop behavior and styling conventions (opacity 0.4, no haptic feedback).
+  - Review `@expo/vector-icons` available icon sets for filled star alternatives: `FontAwesome` `star`/`star-o`, `Ionicons` `star`/`star-outline`, `MaterialIcons` `star`/`star-border`.
+
+- [ ] **T-07-P2 — Research: Deceptive UX antipatterns**
+  - Antipattern: Firing a success callback (Alert, toast, animation) before confirming the operation succeeded — creates false confidence.
+  - Antipattern: Silencing a no-op function with an empty body instead of explicitly marking it as not-yet-implemented (use `throw new Error("Not implemented")` or a `__DEV__` warning in development).
+  - Antipattern: Using the same icon name for two distinct visual states — the conditional renders the same output regardless of input.
+
+- [ ] **T-07-1 — Disable compose Send button when `sendEmail` is not implemented**
+  - File: `artifacts/mobile/app/(tabs)/email.tsx`
+  - Replace `sendEmail()` + success Alert with a disabled button state and a DEV-mode `console.warn("sendEmail: not implemented")`.
+
+- [ ] **T-07-2 — Fix starred icon conditional**
+  - File: `artifacts/mobile/app/(tabs)/email.tsx`
+  - Replace `name={email.starred ? "star" : "star"}` with the appropriate filled/outline icon pair from a compatible icon set (e.g., `Ionicons`: `"star"` / `"star-outline"`).
+
+- [ ] **T-07-3 — Mark `sendEmail` as unimplemented in AppContext**
+  - File: `artifacts/mobile/context/AppContext.tsx`
+  - Replace empty function body with a `if (__DEV__) console.warn(...)` guard making the stub explicit.
+
+---
+
+<a id="t-08"></a>
+## [ ] T-08 — Metro Monorepo Configuration
+**Status:** `NOT_STARTED`
+
+### Definition of Done
+- Metro correctly resolves all `@workspace/*` packages from the pnpm symlink structure.
+- `pnpm install` followed by `expo start` in a fresh checkout resolves all lib packages without errors.
+- The configuration is validated against the pnpm workspace structure (no hardcoded package names).
+
+### Out of Scope
+- Switching Metro for a different bundler (e.g., Webpack, Rspack).
+- Adding web platform support beyond what Expo Router already provides.
+
+### Rules to Follow
+- `watchFolders` must point to the workspace root so Metro can follow symlinks outside the app directory.
+- `resolver.nodeModulesPaths` must include the workspace root `node_modules` so hoisted dependencies are found.
+- The configuration must not enumerate individual workspace packages by name — it must work for any package matching the `@workspace/*` namespace.
+- Any changes to `metro.config.js` must be validated with `expo start --clear` to confirm cache invalidation.
+
+### Advanced Coding Patterns
+
+- [ ] **T-08-P1 — Research: Metro + pnpm monorepo patterns (Feb 2026)**
+  - Study the official Expo monorepo documentation (Expo 54) — `getDefaultConfig` + `watchFolders` + `resolver.disableHierarchicalLookup`.
+  - Review known Metro issue where pnpm's virtual-store symlinks (`node_modules/.pnpm/`) cause duplicate module resolution — `resolver.blockList` patterns to exclude `.pnpm/` secondary copies.
+  - Research `@expo/metro-config` `withNativeWind` and `withTailwind` transformer chaining if Tailwind is added later.
+  - Review Metro 0.81.x (bundled with Expo 54) changelog for monorepo-specific resolver fixes.
+
+- [ ] **T-08-P2 — Research: Metro monorepo antipatterns**
+  - Antipattern: Hardcoding sibling package paths (e.g., `path.resolve(__dirname, "../../lib/db")`) — breaks when the directory structure changes.
+  - Antipattern: Using `resolver.extraNodeModules` to alias `@workspace/*` — this applies only to module ID remapping, not to file watching.
+  - Antipattern: Setting `watchFolders` only to the workspace root without including the app's own `node_modules` — causes Metro to miss local deps.
+  - Antipattern: Missing `resolver.disableHierarchicalLookup: true` — allows Metro to find wrong versions of packages from ancestor `node_modules` directories.
+
+- [ ] **T-08-1 — Update `metro.config.js` with workspace root `watchFolders`**
+  - File: `artifacts/mobile/metro.config.js`
+  - Compute `workspaceRoot = path.resolve(__dirname, "../..")` and add to `watchFolders`.
+
+- [ ] **T-08-2 — Add `resolver.nodeModulesPaths` for hoisted deps**
+  - File: `artifacts/mobile/metro.config.js`
+  - Add `resolver.nodeModulesPaths: [path.resolve(workspaceRoot, "node_modules")]`.
+
+- [ ] **T-08-3 — Add pnpm virtual store to `resolver.blockList`**
+  - File: `artifacts/mobile/metro.config.js`
+  - Exclude `.pnpm` secondary copies: `resolver.blockList: [/node_modules\/\.pnpm\/.*/]` (verify pattern does not block legitimate modules).
+
+---
+
+<a id="t-09"></a>
+## [ ] T-09 — Android Build Configuration
+**Status:** `NOT_STARTED`
+
+### Definition of Done
+- `app.json` contains a valid Android `package` identifier (reverse-domain format).
+- An `android.versionCode` is set.
+- Basic Android permissions required by the app features are declared (audio recording, network, camera if needed).
+- The Expo Router `origin` is loaded from an environment variable, not hardcoded.
+
+### Out of Scope
+- Play Store submission or signing configuration (requires EAS).
+- iOS App Store configuration.
+- Push notification setup.
+
+### Rules to Follow
+- The Android `package` must follow `com.<organization>.<appname>` convention and must be globally unique.
+- `versionCode` must be a monotonically increasing integer — start at `1`.
+- Do not add permissions that the app does not currently use — Android permission audits are sensitive for Play Store review.
+- The `expo-router` `origin` must fall back to a safe value when the env var is absent (e.g., `https://localhost`).
+
+### Advanced Coding Patterns
+
+- [ ] **T-09-P1 — Research: Expo 54 `app.json` Android config requirements (Feb 2026)**
+  - Review Expo 54 + EAS Build Android configuration reference: required fields for bare workflow vs managed.
+  - Study `expo-router` `origin` config — the value must match the universal link domain registered in the associated domains entitlement; a localhost fallback is safe for development.
+  - Review `app.config.ts` (dynamic config) as the correct place to inject environment variables into `app.json` values — static `app.json` cannot reference `process.env`.
+
+- [ ] **T-09-P2 — Research: Android config antipatterns**
+  - Antipattern: An empty `android: {}` object — EAS Build silently uses defaults that may conflict with other apps or fail Play Store validation.
+  - Antipattern: Using `RECORD_AUDIO` permission in `app.json` when `expo-av` or `expo-microphone` handles it — Expo plugins auto-add the permission; manually adding it causes duplicates.
+  - Antipattern: Hardcoding `origin` in `app.json` — breaks universal link verification when deploying to any domain other than the hardcoded value.
+
+- [ ] **T-09-1 — Migrate `app.json` to `app.config.ts`**
+  - File: `artifacts/mobile/app.config.ts` (new file, replaces `app.json` for dynamic values)
+  - Move `expo-router.origin` to read from `process.env.EXPO_PUBLIC_APP_ORIGIN ?? "https://localhost"`.
+
+- [ ] **T-09-2 — Add Android `package` and `versionCode`**
+  - File: `artifacts/mobile/app.config.ts`
+  - Set `android.package: "com.intellitaskhub.app"` (or appropriate identifier) and `android.versionCode: 1`.
+
+- [ ] **T-09-3 — Add required Android permissions**
+  - File: `artifacts/mobile/app.config.ts`
+  - Based on current features (microphone for voice, network): add only permissions required by active features.
+
+---
+
+<a id="t-10"></a>
+## [ ] T-10 — Static File Server Hardening
+**Status:** `NOT_STARTED`
+
+### Definition of Done
+- `serve.js` serves static files using streaming (`fs.createReadStream()` + `pipe()`), not `readFileSync`.
+- Appropriate `Cache-Control` headers are set: immutable for hashed assets, `no-cache` for `index.html` and manifests.
+- Path traversal protection is preserved and tested.
+- `ETag` or `Last-Modified` headers are added for conditional GET support.
+
+### Out of Scope
+- Replacing `serve.js` with a CDN or Nginx — this server is intentionally a minimal Node.js static server for the Replit environment.
+- Gzip/Brotli compression (desirable but separate task).
+
+### Rules to Follow
+- `fs.readFileSync` must not be used in the request path — it blocks the event loop.
+- Path traversal check (`filePath.startsWith(STATIC_ROOT)`) must be preserved after switching to streaming.
+- `index.html` must always be served with `Cache-Control: no-cache, no-store` to prevent stale shell caching.
+- MIME type detection must be done via the existing file extension map, not removed.
+
+### Advanced Coding Patterns
+
+- [ ] **T-10-P1 — Research: Node.js streaming static file server (Feb 2026)**
+  - Review `fs.createReadStream()` + `res.pipe()` patterns with proper `error` event handling (file not found, permission denied).
+  - Study `http.ServerResponse` `setHeader` for `ETag` generation: use `fs.statSync(filePath).mtimeMs.toString(36)` as a lightweight ETag.
+  - Review `If-None-Match` / `If-Modified-Since` conditional GET handling without a framework.
+  - Note: Node.js `http` module (used in `serve.js`) does not auto-compress — review `node:zlib` `createGzip` pipe chaining if compression is added later.
+
+- [ ] **T-10-P2 — Research: Static serving antipatterns**
+  - Antipattern: `readFileSync` in request handler — synchronous I/O serializes all requests behind each other on a single-threaded event loop.
+  - Antipattern: `Cache-Control: max-age=31536000` on `index.html` (the app shell) — after deployment, old clients serve the stale shell and fail to load new JS chunks.
+  - Antipattern: Setting `ETag` as `Math.random()` — invalidates cache on every request.
+  - Antipattern: Forgetting to handle `stream.on('error')` on the read stream — unhandled error events crash the Node process.
+
+- [ ] **T-10-1 — Replace `readFileSync` with `createReadStream` + `pipe`**
+  - File: `artifacts/mobile/server/serve.js`
+  - Wrap stream creation in try/catch for ENOENT; return 404 on read error.
+
+- [ ] **T-10-2 — Add `Cache-Control` headers by file type**
+  - File: `artifacts/mobile/server/serve.js`
+  - `index.html` / manifests: `no-cache, no-store`. Hashed JS/CSS chunks: `public, max-age=31536000, immutable`.
+
+- [ ] **T-10-3 — Add lightweight `ETag` support**
+  - File: `artifacts/mobile/server/serve.js`
+  - Use `fs.stat` (async) to read `mtimeMs`; set `ETag` header; return `304` on `If-None-Match` match.
+
+---
+
+<a id="t-11"></a>
+## [ ] T-11 — Environment Variable Portability
+**Status:** `NOT_STARTED`
+
+### Definition of Done
+- A `.env.example` file at the workspace root documents every required and optional env var.
+- No source file hardcodes `"https://replit.com/"`, `"replit.com"`, or `REPL_ID`-conditional logic that would silently misbehave outside Replit.
+- `mobile/scripts/build.js` has documented non-Replit usage instructions or environment-agnostic path.
+- `setBaseUrl` in the mobile root layout supports both `http://` and `https://` via a full URL env var.
+
+### Out of Scope
+- CI/CD secret management or Vault integration.
+- Replacing Replit Secrets with a `.env` file on the Replit platform itself.
+
+### Rules to Follow
+- `EXPO_PUBLIC_*` vars are inlined at build time — they cannot change at runtime. Document this limitation.
+- The `app.config.ts` migration (T-09) is a prerequisite for injecting `EXPO_PUBLIC_APP_ORIGIN` into `expo-router`.
+- Never commit `.env` files; `.env.example` must contain only placeholder values.
+- Env var names must be SCREAMING_SNAKE_CASE and namespaced by service (e.g., `API_`, `OPENAI_`, `EXPO_PUBLIC_`).
+
+### Advanced Coding Patterns
+
+- [ ] **T-11-P1 — Research: Expo 54 env var patterns (Feb 2026)**
+  - Review Expo's `EXPO_PUBLIC_*` convention — available in JS bundle via `process.env`; server-only vars (no prefix) are not bundled.
+  - Study `app.config.ts` `extra` field vs direct `process.env` access within `app.config.ts` — both work but `extra` is the documented pattern for passing config to Expo Router.
+  - Review `dotenv` / `dotenv-cli` for running scripts with local env vars without modifying shell profiles.
+
+- [ ] **T-11-P2 — Research: Env var antipatterns**
+  - Antipattern: `setBaseUrl("https://" + domain)` — assumes HTTPS; breaks HTTP-only dev environments and misses port numbers.
+  - Antipattern: `process.env.REPL_ID ? loadPlugin() : null` — conditional plugin loading based on Replit presence leaks environment-specific infrastructure decisions into source code.
+  - Antipattern: Undocumented env vars — a new developer has no way to know which vars are required without reading every source file.
+
+- [ ] **T-11-1 — Create `.env.example` at workspace root**
+  - File: `.env.example` (new file)
+  - Document: `DATABASE_URL`, `AI_INTEGRATIONS_OPENAI_API_KEY`, `API_SECRET_KEY`, `CORS_ALLOWED_ORIGINS`, `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_APP_ORIGIN`, `PORT`.
+
+- [ ] **T-11-2 — Fix `setBaseUrl` to accept a full URL**
+  - File: `artifacts/mobile/app/_layout.tsx`
+  - Change to `setBaseUrl(process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000")` — removes hardcoded scheme and domain.
+
+- [ ] **T-11-3 — Document `mobile/scripts/build.js` Replit dependency**
+  - File: `artifacts/mobile/scripts/build.js`
+  - Add a comment block at the top listing all required Replit env vars and stating that the script is Replit-specific.
+
+- [ ] **T-11-4 — Extract Replit conditional from `mockup-sandbox/vite.config.ts`**
+  - File: `artifacts/mockup-sandbox/vite.config.ts`
+  - Move `REPL_ID`-conditional Cartographer plugin load to a separate `vite.config.replit.ts` or document clearly via comment.
+
+---
+
+<a id="t-12"></a>
+## [ ] T-12 — OpenAI Integration Consolidation
+**Status:** `NOT_STARTED`
+
+### Definition of Done
+- `lib/integrations/openai_ai_integrations/` (the dead non-package directory) is removed or promoted to a proper workspace package.
+- The three separate `new OpenAI({ ... })` client instantiations are reduced to one shared factory.
+- The `ffmpeg` system dependency is documented and a startup check is added.
+- The `batchProcessWithSSE` utility is either wired to a real use case or marked with a clear `TODO` comment.
+
+### Out of Scope
+- Switching from OpenAI to another AI provider.
+- Adding new OpenAI capabilities beyond what is currently scaffolded.
+
+### Rules to Follow
+- A single `createOpenAIClient()` factory in one shared location must own reading `AI_INTEGRATIONS_OPENAI_API_KEY` and `AI_INTEGRATIONS_OPENAI_BASE_URL`.
+- `ffmpeg` checks must be done at module load time (not inside request handlers) so the error surfaces at server startup.
+- Duplicate source directories must not coexist — the `lib/integrations/openai_ai_integrations/` directory and `lib/integrations-openai-ai-server/` serve the same purpose.
+
+### Advanced Coding Patterns
+
+- [ ] **T-12-P1 — Research: Singleton OpenAI client patterns (Feb 2026)**
+  - Review OpenAI Node SDK v5+ (current as of Q1 2026) — assess whether the SDK supports a singleton instance pattern without re-reading process.env on every call.
+  - Study `node:child_process` `spawnSync("ffmpeg", ["-version"])` as a synchronous startup check — prefer over `which` which is platform-dependent.
+  - Review ESM module singleton pattern: a module-level `const openai = new OpenAI(...)` is a singleton by virtue of ESM module caching.
+
+- [ ] **T-12-P2 — Research: Multiple client instance antipatterns**
+  - Antipattern: Three separate `new OpenAI({ apiKey: process.env... })` calls — if the API key rotates, all three must be updated; if one misses the env var, it silently uses `undefined` and fails at request time.
+  - Antipattern: Placing the OpenAI client in the same file as the business logic — hard to mock in tests.
+  - Antipattern: Not handling `ffmpeg` `ENOENT` spawn error — surfaces as an unhandled promise rejection that crashes the server.
+
+- [ ] **T-12-1 — Create shared OpenAI client factory**
+  - File: `lib/integrations-openai-ai-server/src/client.ts` (already exists — refactor to be the canonical factory)
+  - Export `getOpenAIClient(): OpenAI` as a memoized singleton; remove duplicate instantiations from `image/client.ts` and `audio/client.ts`.
+
+- [ ] **T-12-2 — Add `ffmpeg` startup existence check**
+  - File: `lib/integrations-openai-ai-server/src/audio/client.ts`
+  - Use `spawnSync("ffmpeg", ["-version"], { stdio: "ignore" })` at module load; throw a descriptive error if `status !== 0`.
+
+- [ ] **T-12-3 — Remove or promote dead integration directory**
+  - Directory: `lib/integrations/openai_ai_integrations/`
+  - If `lib/integrations-openai-ai-server/` and `lib/integrations-openai-ai-react/` fully supersede it: remove the directory.
+  - If unique code remains: create a proper `package.json` and register in `pnpm-workspace.yaml`.
+
+- [ ] **T-12-4 — Add `TODO` comment to `batchProcessWithSSE`**
+  - File: `lib/integrations-openai-ai-server/src/batch/utils.ts`
+  - Add a `// TODO: Wire to POST /api/openai/batch when batch processing route is implemented` comment.
+
+---
+
+<a id="t-13"></a>
+## [ ] T-13 — Audio Worklet Deployment & Documentation
+**Status:** `NOT_STARTED`
+
+### Definition of Done
+- `audio-playback-worklet.js` is either automatically copied to the consumer app's `public/` directory via a build script, or the requirement is prominently documented in a top-level README section.
+- The worklet path is configurable (not hardcoded to `"/audio-playback-worklet.js"`).
+- A `README.md` or inline setup guide in `lib/integrations-openai-ai-react/` explains the deployment step.
+
+### Out of Scope
+- Integrating the voice hooks into the mobile chat tab (a feature development task).
+- Bundling the worklet inline as a data URI (potentially viable but changes the security model).
+
+### Rules to Follow
+- The worklet must be served from the same origin as the application (AudioWorklet security restriction).
+- The default `workletPath` parameter must remain configurable — do not hardcode the path inside the hooks.
+- The README must include a concrete example of the copy command for both Vite (`public/`) and Expo Web.
+
+### Advanced Coding Patterns
+
+- [ ] **T-13-P1 — Research: AudioWorklet deployment patterns (Feb 2026)**
+  - Review approaches for bundling AudioWorklets: Worklet as separate file in `public/`, Worklet inlined as `blob:` URL, Worklet loaded via `import.meta.url` with Vite's `?url` suffix.
+  - Study Vite 5 `?url` import for worklets — `import workletUrl from './audio-playback-worklet.js?url'` makes Vite copy it to `dist/` and returns the hash-fingerprinted URL.
+  - Review Web Audio API `AudioWorklet.addModule()` same-origin requirement — cannot load from `blob:` URL in all browsers.
+
+- [ ] **T-13-P2 — Research: Audio worklet antipatterns**
+  - Antipattern: Hardcoding `"/audio-playback-worklet.js"` as the default path — breaks in apps with a base URL that is not `/`.
+  - Antipattern: Forgetting that `AudioContext` must be resumed after a user gesture — `ctx.state === 'suspended'` until user interaction; starting playback without checking state produces silent output.
+  - Antipattern: Placing the worklet file in `src/` without a build step to copy it — Vite/Metro will not include it in the output bundle automatically.
+
+- [ ] **T-13-1 — Add Vite `?url` import to the audio index**
+  - File: `lib/integrations-openai-ai-react/src/audio/index.ts`
+  - Export `audioPlaybackWorkletUrl` using `import workletUrl from './audio-playback-worklet.js?url'` for Vite consumers.
+
+- [ ] **T-13-2 — Create `README.md` for `integrations-openai-ai-react`**
+  - File: `lib/integrations-openai-ai-react/README.md` (new file)
+  - Document: worklet file copy step, required `public/` placement, `createAudioPlaybackContext` usage, Expo Web compatibility notes.
+
+- [ ] **T-13-3 — Make `workletPath` required (no default) or validate default**
+  - File: `lib/integrations-openai-ai-react/src/audio/audio-utils.ts`
+  - Remove the hardcoded default `"/audio-playback-worklet.js"` from `createAudioPlaybackContext`; require callers to pass the path explicitly, or add a `console.warn` in DEV when the default is used.
+
+---
+
+<a id="t-14"></a>
+## [ ] T-14 — Error Observability Pipeline
+**Status:** `NOT_STARTED`
+
+### Definition of Done
+- The React `ErrorBoundary` `onError` prop is wired to a reporting function in the root layout.
+- Unhandled server errors are logged with full context (route, params, user agent) via Pino.
+- At minimum a DEV-mode console capture exists; a production error reporting hook is defined (even if the external service integration is a stub).
+- `ErrorFallback.tsx` includes a UI affordance to copy/share the error ID for support.
+
+### Out of Scope
+- Selecting and fully integrating a paid error tracking service (Sentry, Datadog, Bugsnag) — infrastructure decision deferred.
+- Backend APM or distributed tracing.
+
+### Rules to Follow
+- Error reports must never include PII or sensitive context (API keys, user tokens).
+- The `onError` handler must be synchronous — async handlers in React error boundaries can cause double-rendering issues.
+- Errors must be assigned a unique `errorId` (using `crypto.randomUUID()`) so users can report a specific incident.
+- Server-side Express error handler must be the last `app.use()` call in `app.ts`.
+
+### Advanced Coding Patterns
+
+- [ ] **T-14-P1 — Research: React Native error reporting patterns (Feb 2026)**
+  - Review `ErrorBoundary` `onError(error, errorInfo)` — `errorInfo.componentStack` is available for React Native in New Architecture (Hermes 0.81).
+  - Study `expo-application` for obtaining a device/install identifier to correlate error reports.
+  - Review Express 5 error handler signature: `(err, req, res, next)` — all four parameters required; Express 5 async errors auto-forward unlike Express 4.
+  - Research structured logging of errors with Pino: `logger.error({ err, req }, "Unhandled route error")` — Pino serializes `err` with `stack` by default.
+
+- [ ] **T-14-P2 — Research: Error observability antipatterns**
+  - Antipattern: `try { ... } catch { }` empty catch blocks — errors are silently dropped.
+  - Antipattern: `console.error(error)` as the sole observability mechanism in production — no structured search, no alerting.
+  - Antipattern: Logging `req.body` verbatim in error context — may contain passwords, tokens, PII.
+  - Antipattern: Async `onError` prop on React error boundaries — React does not await promises in the error boundary lifecycle.
+
+- [ ] **T-14-1 — Wire `onError` in root layout**
+  - File: `artifacts/mobile/app/_layout.tsx`
+  - Define `handleError(error, { componentStack })` that generates an `errorId` and logs/stores it.
+
+- [ ] **T-14-2 — Display `errorId` in `ErrorFallback`**
+  - File: `artifacts/mobile/components/ErrorFallback.tsx`
+  - Accept `errorId` prop; display below "Something went wrong" for user reference.
+
+- [ ] **T-14-3 — Add Express global error handler**
+  - File: `artifacts/api-server/src/app.ts`
+  - Add `app.use((err, req, res, next) => { logger.error({ err, path: req.path }, "Unhandled error"); res.status(500).json({ error: "Internal server error" }); })` as the last middleware.
+
+---
+
+<a id="t-15"></a>
+## [ ] T-15 — Database Schema Hardening
+**Status:** `NOT_STARTED`
+
+### Definition of Done
+- The `messages.role` column is constrained to `"user" | "assistant" | "system"` in both the Drizzle schema and the database.
+- A `migrations/` directory exists with the initial migration generated from the current schema.
+- `drizzle-kit push` is replaced by `drizzle-kit migrate` for production environments.
+- `post-merge.sh` filter is corrected to match the workspace package name.
+
+### Out of Scope
+- Switching from PostgreSQL to another database.
+- Adding new tables or schema changes beyond the role constraint.
+
+### Rules to Follow
+- Schema changes must produce a migration file — `push` is destructive in production (it diffs and re-creates constraints without history).
+- The `role` check constraint must match the set of roles used in the codebase exactly — adding `"tool"` or `"function"` prematurely is out of scope.
+- The migration must be committed to source control alongside the schema change.
+- `post-merge.sh` must be tested: run `pnpm --filter @workspace/db --list` to confirm the filter resolves before wiring to git hooks.
+
+### Advanced Coding Patterns
+
+- [ ] **T-15-P1 — Research: Drizzle ORM schema constraints (Feb 2026)**
+  - Review Drizzle 0.31 `check()` constraint API: `check("role_check", sql\`${messages.role} IN ('user', 'assistant', 'system')\`)`.
+  - Study `drizzle-kit generate` vs `drizzle-kit push` — `generate` produces SQL migration files; `push` applies diffs directly without history.
+  - Review `pgEnum` in Drizzle as an alternative to a check constraint — creates a PostgreSQL `ENUM` type, which is stricter but harder to extend.
+  - Note: Drizzle 0.31 `pgEnum` creates and drops the ENUM type during migrations; be aware of the transaction implications.
+
+- [ ] **T-15-P2 — Research: Schema migration antipatterns**
+  - Antipattern: `drizzle-kit push` in production CI — silently drops and recreates columns/constraints without a rollback path.
+  - Antipattern: `text` column with no application-level or DB-level constraint for categorical values — ORM types diverge from DB reality over time.
+  - Antipattern: Committing schema changes without a corresponding migration — `push` state and schema code diverge when the next developer runs `push` on a different DB.
+
+- [ ] **T-15-1 — Add `role` check constraint to messages schema**
+  - File: `lib/db/src/schema/messages.ts`
+  - Add Drizzle `check("messages_role_check", sql\`${messages.role} IN ('user', 'assistant', 'system')\`)`.
+
+- [ ] **T-15-2 — Generate and commit initial migration**
+  - File: `lib/db/` (run `pnpm drizzle-kit generate`)
+  - Commit the resulting `migrations/` directory and update `drizzle.config.ts` to point `out: "migrations"`.
+
+- [ ] **T-15-3 — Update `drizzle.config.ts` migration mode**
+  - File: `lib/db/drizzle.config.ts`
+  - Change from `push` workflow to `migrate` workflow for production; keep `push` as a dev-only command in `package.json` scripts.
+
+- [ ] **T-15-4 — Fix `post-merge.sh` filter**
+  - File: `scripts/post-merge.sh`
+  - Change `pnpm --filter db push` → `pnpm --filter @workspace/db run db:migrate`.
+
+---
+
+<a id="t-16"></a>
+## [ ] T-16 — Generated API Client Adoption
+**Status:** `NOT_STARTED`
+
+### Definition of Done
+- The mobile chat tab uses `useGetOpenaiConversations`, `useGetOpenaiConversationMessages`, and the SSE mutation from `@workspace/api-client-react` instead of raw `expo/fetch`.
+- The `size` field in the image generation route is validated using `GenerateOpenaiImageBodySize` from `@workspace/api-zod`.
+- The SSE event payload format is documented in `openapi.yaml` (not an empty `{}` schema).
+
+### Out of Scope
+- Regenerating the full Orval output (only modify the spec if a schema change is needed).
+- Adding new API endpoints.
+
+### Rules to Follow
+- All API calls from the mobile app must go through the generated hooks to maintain a single source of truth.
+- The OpenAPI spec is the authoritative schema — any runtime behavior deviation from the spec must result in a spec update, not a workaround in the client.
+- Custom `expo/fetch` usage is only permitted for SSE streaming where the generated hook cannot produce a streaming consumer; in this case the hook must still be used for non-streaming operations on the same resource.
+
+### Advanced Coding Patterns
+
+- [ ] **T-16-P1 — Research: Orval React Query hooks with SSE (Feb 2026)**
+  - Review Orval 8.5.x `mutator` option — allows replacing the fetch implementation per-endpoint, enabling SSE for specific mutations while using standard fetch elsewhere.
+  - Study OpenAPI 3.1 `text/event-stream` response documentation patterns — `x-streaming: true` extension vs inline schema with `oneOf` discriminated events.
+  - Review React Query 5 `useMutation` `onSettled` / `onSuccess` patterns for invalidating conversation message cache after an SSE stream completes.
+
+- [ ] **T-16-P2 — Research: Mixed fetch/generated-client antipatterns**
+  - Antipattern: Raw `fetch` for some endpoints and generated hooks for others — creates two code paths with different error handling, auth injection, and caching behavior.
+  - Antipattern: Importing from `@workspace/api-client-react` and also calling `expo/fetch` on the same endpoint — double requests, cache inconsistency.
+  - Antipattern: Documenting SSE response as `{}` in OpenAPI — generators and consumers cannot derive types; forces manual casting everywhere.
+
+- [ ] **T-16-1 — Document SSE event schema in `openapi.yaml`**
+  - File: `lib/api-spec/openapi.yaml`
+  - Replace empty `text/event-stream: {}` with a documented `x-stream-events` extension or `oneOf` schema for `{token: string}` and `{done: true}` event shapes.
+
+- [ ] **T-16-2 — Replace raw conversation fetch in chat tab**
+  - File: `artifacts/mobile/app/(tabs)/index.tsx`
+  - Replace `fetch("/api/openai/conversations")` / `loadConversation` raw calls with `useGetOpenaiConversations` and `useGetOpenaiConversationMessages`.
+
+- [ ] **T-16-3 — Validate image `size` using Zod enum in route**
+  - File: `artifacts/api-server/src/routes/openai/image.ts`
+  - Import and use `generateOpenaiImageBodySchema` from `@workspace/api-zod` for full body validation including the size enum.
+
+---
+
+<a id="t-17"></a>
+## [ ] T-17 — Mockup Sandbox Bootstrap
+**Status:** `NOT_STARTED`
+
+### Definition of Done
+- At least one representative mockup component exists in `src/components/mockups/` that demonstrates the auto-discovery pipeline works end-to-end.
+- `version` in `package.json` is aligned with the workspace convention.
+- `BASE_PATH` and `PORT` requirements are documented in a comment at the top of `vite.config.ts` or in a `README.md`.
+- `@workspace/*` package aliases are added to `vite.config.ts` if the sandbox is intended to import from workspace libs.
+
+### Out of Scope
+- Building a full component library — this task is only about verifying the scaffolding works.
+- Deploying the sandbox to a public URL.
+
+### Rules to Follow
+- The demo component must use at least one `shadcn/ui` component from the `src/components/ui/` directory to validate the existing UI library setup.
+- The `package.json` version must match the workspace convention (`"0.0.0"`) unless semantic versioning is intentionally applied to this package.
+- `vite.config.ts` must not use `process.exit` or `throw` for missing optional configuration — use safe defaults where possible.
+
+### Advanced Coding Patterns
+
+- [ ] **T-17-P1 — Research: Vite 5 dynamic import patterns (Feb 2026)**
+  - Review `import.meta.glob` eager vs lazy loading — `import.meta.glob('...', { eager: true })` returns resolved modules directly; lazy (default) returns `() => Promise<module>` for code splitting.
+  - Study `mockupPreviewPlugin.ts` code generation approach — the generated `modules` map uses lazy dynamic imports, meaning each component is a separate chunk with full tree-shaking.
+  - Review Vite 5 `resolve.alias` for `@workspace/*` packages: `{ '@workspace/api-client-react': resolve(__dirname, '../../lib/api-client-react/src/index.ts') }`.
+
+- [ ] **T-17-P2 — Research: Mockup sandbox antipatterns**
+  - Antipattern: Throwing on missing `BASE_PATH` env var — if the sandbox is run without the exact Replit env it was designed for, it refuses to start with a cryptic error.
+  - Antipattern: Having `version: "2.0.0"` in a workspace package — pnpm workspace range resolution uses the `^` and `~` operators against this version; a mismatch can cause unexpected peer dep resolution.
+  - Antipattern: No mockup components but a running discovery loop — the Vite server starts watching an empty directory and the `App.tsx` renders a blank page with no indication of what to do.
+
+- [ ] **T-17-1 — Create a demo `Button.mockup.tsx` component**
+  - File: `artifacts/mockup-sandbox/src/components/mockups/Button.mockup.tsx` (new file)
+  - Simple component showcasing `<Button>` variants from `src/components/ui/button.tsx`.
+
+- [ ] **T-17-2 — Fix `version` in `package.json`**
+  - File: `artifacts/mockup-sandbox/package.json`
+  - Change `"version": "2.0.0"` → `"version": "0.0.0"`.
+
+- [ ] **T-17-3 — Add env var documentation to `vite.config.ts`**
+  - File: `artifacts/mockup-sandbox/vite.config.ts`
+  - Add a top-of-file comment block listing required (`BASE_PATH`, `PORT`) and optional (`REPL_ID`) env vars with example values.
+
+- [ ] **T-17-4 — Replace `throw` on missing `BASE_PATH` with a safe default**
+  - File: `artifacts/mockup-sandbox/vite.config.ts`
+  - Change the `throw new Error("BASE_PATH is required")` to `const BASE_PATH = process.env.BASE_PATH ?? "/"` with a `console.warn` if absent.
+
+---
+
+<a id="t-18"></a>
+## [ ] T-18 — TypeScript Strictness Uplift
+**Status:** `NOT_STARTED`
+
+### Definition of Done
+- `noUnusedLocals: true` is enabled in `tsconfig.base.json` and all resulting errors are resolved.
+- `strictFunctionTypes: true` is enabled and all resulting errors are resolved.
+- `strictPropertyInitialization: true` is confirmed enabled (it is part of `strict: true` if set, otherwise explicit).
+- No new `as` type assertions are introduced to paper over removed errors.
+
+### Out of Scope
+- Enabling `noUncheckedIndexedAccess` (high-impact change affecting generated code — separate task if desired).
+- Enabling `exactOptionalPropertyTypes` (breaks generated Orval output — do not enable).
+
+### Rules to Follow
+- Enable flags one at a time and fix errors before enabling the next flag.
+- Do not suppress errors with `// @ts-ignore` or `// @ts-expect-error` unless there is a documented reason.
+- Generated files (under `generated/`) must be excluded from the new strict rules via `tsconfig` `exclude` if they cannot be changed.
+- `strictFunctionTypes` errors in callback-heavy code (e.g., Express route handlers) should be fixed by narrowing types, not by broadening function signatures.
+
+### Advanced Coding Patterns
+
+- [ ] **T-18-P1 — Research: TypeScript strict mode migration (Feb 2026)**
+  - Review TypeScript 5.9 release notes for any new strict flags or changes to existing checks.
+  - Study the incremental strict migration pattern: use `// @ts-strict-ignore` at file level (TS 5.0+) to defer individual files, enabling project-wide flag without fixing everything at once.
+  - Review impact of `strictFunctionTypes` on Express 5 `RequestHandler` type — Express 5 types are stricter and may already require this.
+
+- [ ] **T-18-P2 — Research: Strictness antipatterns**
+  - Antipattern: `"strict": false` alongside individual `"strictNullChecks": true` — the individual flags do not compose to full strict mode; must use `"strict": true` as the base.
+  - Antipattern: Adding `as unknown as T` casts to silence `strictFunctionTypes` errors — hides genuine type unsafety.
+  - Antipattern: Disabling strict flags in generated files by putting them in `tsconfig.json` includes — generated files should be in a separate tsconfig that is not type-checked.
+
+- [ ] **T-18-1 — Enable `noUnusedLocals` and fix resulting errors**
+  - File: `tsconfig.base.json`
+  - Set `"noUnusedLocals": true`; audit and fix all reported unused variables across all packages.
+
+- [ ] **T-18-2 — Enable `strictFunctionTypes` and fix resulting errors**
+  - File: `tsconfig.base.json`
+  - Set `"strictFunctionTypes": true`; audit all callback signatures especially in Express route handlers.
+
+- [ ] **T-18-3 — Exclude generated files from strict checks**
+  - Files: `lib/api-client-react/tsconfig.json`, `lib/api-zod/tsconfig.json`
+  - Add generated sub-directories to `exclude` or create a separate `tsconfig.generated.json` that omits new strict flags.
+
+---
+
+<a id="t-19"></a>
+## [ ] T-19 — Dead Code Elimination
+**Status:** `NOT_STARTED`
+
+### Definition of Done
+- `babel-plugin-react-compiler` is removed from mobile `devDependencies` (superseded by `app.config.ts` experiments flag).
+- `scripts/src/hello.ts` is replaced with a real automation script or the `scripts/` package is removed.
+- `lib/integrations/openai_ai_integrations/` is resolved per T-12-3 (removed or promoted).
+- `cookie-parser` is resolved per T-04-2 (removed or registered).
+- `batchProcessWithSSE` has a `TODO` comment per T-12-4 (or is wired to a real use case).
+- `generateId()` in `AppContext` is replaced with `crypto.randomUUID()`.
+
+### Out of Scope
+- Refactoring working features to use different patterns simply because they are suboptimal (those are tracked in specific tasks above).
+
+### Rules to Follow
+- Before removing any code, confirm it is not imported anywhere in the workspace (`grep_search` for the export name).
+- `babel-plugin-react-compiler` removal requires verifying that `app.json` / `app.config.ts` `experiments.reactCompiler: true` is the active mechanism.
+- `scripts/hello.ts` removal must be confirmed with the team — the `scripts/` package may be intentionally scaffolded for future automation.
+
+### Advanced Coding Patterns
+
+- [ ] **T-19-P1 — Research: Identifying dead code in TypeScript monorepos (Feb 2026)**
+  - Review `ts-prune` and `knip` (TypeScript dead export finder) — `knip` v5+ supports pnpm workspace configurations and cross-package import analysis.
+  - Study `pnpm why <package>` for confirming a package is an unused dependency vs a transitive dep.
+  - Review `babel-plugin-react-compiler` vs Expo SDK 54's built-in React Compiler support — confirm which mechanism is authoritative.
+
+- [ ] **T-19-P2 — Dead code antipatterns**
+  - Antipattern: Removing an export without checking if it is re-exported from an `index.ts` — the immediate file may not import it but it may still be reachable.
+  - Antipattern: Keeping `babel-plugin-react-compiler` alongside Expo's native React Compiler support — may result in double-compilation or conflicting transforms.
+  - Antipattern: `Date.now() + Math.random()` as an ID generator — not collision-resistant; `crypto.randomUUID()` is available in React Native (Hermes 0.81+) and produces RFC 4122 UUIDs.
+
+- [ ] **T-19-1 — Remove `babel-plugin-react-compiler` from mobile deps**
+  - File: `artifacts/mobile/package.json`
+  - Remove from `devDependencies`; run `pnpm install` to confirm no other package requires it.
+
+- [ ] **T-19-2 — Replace `generateId()` with `crypto.randomUUID()`**
+  - File: `artifacts/mobile/context/AppContext.tsx`
+  - Replace all calls to `generateId()` with `crypto.randomUUID()` and remove the `generateId` function.
+
+- [ ] **T-19-3 — Add placeholder `README.md` to `scripts/` or remove package**
+  - File: `scripts/README.md` (new file) OR remove `scripts/` from `pnpm-workspace.yaml`
+  - If kept, document the purpose and expected automation scripts; if removed, confirm no other package depends on it.
+
+- [ ] **T-19-4 — Audit unused exports with `knip`**
+  - Run `pnpm dlx knip --workspace` from workspace root; review output and remove confirmed dead exports.
+
+---
+
+<a id="t-20"></a>
+## [ ] T-20 — Post-Merge Automation & Git Hooks
+**Status:** `NOT_STARTED`
+
+### Definition of Done
+- `scripts/post-merge.sh` is wired as a `git` post-merge hook in the repository.
+- The pnpm filter in `post-merge.sh` correctly targets the `@workspace/db` package.
+- The hook runs `drizzle-kit migrate` (not `push`) in non-development environments.
+- A `scripts/setup-hooks.sh` (or `package.json` `prepare` script) installs the hook automatically after `pnpm install`.
+
+### Out of Scope
+- Pre-commit hooks (linting, type-checking) — a separate concern.
+- CI/CD pipeline migration hooks.
+
+### Rules to Follow
+- Git hooks are not committed directly to `.git/hooks/` — that directory is not tracked. Use a `scripts/` directory with a setup script that symlinks or copies hooks.
+- The hook must be idempotent — running it twice must not cause errors.
+- The hook must exit with a non-zero code if `pnpm install` or `drizzle-kit migrate` fails, so the developer is alerted.
+- Do not use `--frozen-lockfile` in the hook if developers are expected to add packages during merges; use `--no-frozen-lockfile` with awareness.
+
+### Advanced Coding Patterns
+
+- [ ] **T-20-P1 — Research: Git hooks in pnpm monorepos (Feb 2026)**
+  - Review `simple-git-hooks` and `husky` v9 for hook management in monorepos — both support a `prepare` script that runs on `pnpm install`.
+  - Study `lefthook` as a cross-platform alternative with pnpm workspace support.
+  - Review pnpm `package.json` `"prepare"` lifecycle script — runs automatically after `pnpm install` making it ideal for hook setup.
+  - Note: `simple-git-hooks` is lighter than Husky and does not require shell script wrappers.
+
+- [ ] **T-20-P2 — Git hooks antipatterns**
+  - Antipattern: Committing hooks to `.git/hooks/` directly — not version-controlled, lost on fresh clone.
+  - Antipattern: Using `--force` in `pnpm install` inside a hook — can corrupt the lockfile if two developers merge simultaneously.
+  - Antipattern: A `post-merge` hook that runs `drizzle-kit push` in production — destructive, as noted in T-15.
+  - Antipattern: A hook that calls `exit 1` on a warning instead of only on actual errors — blocks legitimate merges.
+
+- [ ] **T-20-1 — Add `simple-git-hooks` to workspace root**
+  - File: `package.json` (workspace root)
+  - Add `simple-git-hooks` to devDependencies; configure `"post-merge": "sh scripts/post-merge.sh"` in the `simple-git-hooks` config block.
+
+- [ ] **T-20-2 — Fix `post-merge.sh` pnpm filter and command**
+  - File: `scripts/post-merge.sh`
+  - Change `pnpm --filter db push` → `pnpm --filter @workspace/db run db:migrate`.
+
+- [ ] **T-20-3 — Add `"prepare"` script to workspace root `package.json`**
+  - File: `package.json` (workspace root)
+  - Add `"prepare": "simple-git-hooks"` to `scripts` — installs hooks automatically on `pnpm install`.
+
+- [ ] **T-20-4 — Add `db:migrate` script to db package**
+  - File: `lib/db/package.json`
+  - Add `"db:migrate": "drizzle-kit migrate"` to `scripts`.
+
+---
+
+*End of TODO.md — 20 parent tasks · 38 tracked issues · ~90 subtasks*

@@ -1,18 +1,46 @@
+import { z } from "zod";
 import app from "./app";
 import { logger } from "./lib/logger";
+import { initializeAuth } from "./middlewares/auth";
 
-const rawPort = process.env["PORT"];
+/**
+ * @file Server entry point with startup validation
+ * @module index
+ *
+ * Validates required environment variables at startup using Zod.
+ * The server will refuse to start if any required configuration is missing.
+ */
 
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
+// ============================================================================
+// Startup Environment Validation
+// ============================================================================
 
-const port = Number(rawPort);
+const envSchema = z.object({
+  PORT: z.string().min(1, "PORT is required"),
+  DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
+  AI_INTEGRATIONS_OPENAI_API_KEY: z
+    .string()
+    .min(1, "AI_INTEGRATIONS_OPENAI_API_KEY is required"),
+  API_SECRET_KEY: z
+    .string()
+    .min(32, "API_SECRET_KEY must be at least 32 characters long"),
+});
+
+// Parse and validate environment variables
+// Throws with descriptive message on failure, preventing server start
+const env = envSchema.parse(process.env);
+
+// Initialize authentication middleware with validated API secret key
+initializeAuth(env.API_SECRET_KEY);
+
+// ============================================================================
+// Server Startup
+// ============================================================================
+
+const port = Number(env.PORT);
 
 if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
+  throw new Error(`Invalid PORT value: "${env.PORT}"`);
 }
 
 app.listen(port, (err) => {
