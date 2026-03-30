@@ -1,6 +1,6 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   Alert,
   FlatList,

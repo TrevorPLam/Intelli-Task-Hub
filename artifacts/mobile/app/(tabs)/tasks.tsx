@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   Alert,
   FlatList,
@@ -17,7 +17,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
-import { useApp, type Task, type Project, type Priority, type TaskStatus } from "@/context/AppContext";
+import {
+  useApp,
+  type Task,
+  type Project,
+  type Priority,
+  type TaskStatus,
+} from "@/context/AppContext";
+import { validateTaskInput, validateProjectInput } from "@/utils/validation";
 
 const PRIORITY_CONFIG = {
   high: { label: "High", icon: "alert-circle" as const },
@@ -33,140 +40,163 @@ const STATUS_CONFIG = {
 
 const PROJECT_EMOJIS = ["💼", "🏡", "❤️", "🎯", "📚", "🚀", "💡", "🌱"];
 const PROJECT_COLORS = [
-  "#6C63FF", "#F59E0B", "#10B981", "#EF4444",
-  "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6",
+  "#6C63FF",
+  "#F59E0B",
+  "#10B981",
+  "#EF4444",
+  "#3B82F6",
+  "#8B5CF6",
+  "#EC4899",
+  "#14B8A6",
 ];
 
-function TaskCard({
-  task,
-  project,
-  colors,
-  onToggle,
-  onDelete,
-}: {
-  task: Task;
-  project?: Project;
-  colors: typeof Colors.light;
-  onToggle: () => void;
-  onDelete: () => void;
-}) {
-  const priorityColors: Record<Priority, string> = {
-    high: colors.taskHigh,
-    medium: colors.taskMedium,
-    low: colors.taskLow,
-  };
-  const isDone = task.status === "done";
+const TaskCard = React.memo(
+  ({
+    task,
+    project,
+    colors,
+    onToggle,
+    onDelete,
+  }: {
+    task: Task;
+    project?: Project;
+    colors: typeof Colors.light;
+    onToggle: () => void;
+    onDelete: () => void;
+  }) => {
+    const priorityColors: Record<Priority, string> = {
+      high: colors.taskHigh,
+      medium: colors.taskMedium,
+      low: colors.taskLow,
+    };
+    const isDone = task.status === "done";
 
-  return (
-    <Pressable
-      onLongPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        Alert.alert("Delete Task", `Delete "${task.title}"?`, [
-          { text: "Cancel", style: "cancel" },
+    return (
+      <Pressable
+        onLongPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          Alert.alert("Delete Task", `Delete "${task.title}"?`, [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Delete",
+              style: "destructive",
+              onPress: onDelete,
+            },
+          ]);
+        }}
+        style={({ pressed }) => [
+          styles.taskCard,
           {
-            text: "Delete",
-            style: "destructive",
-            onPress: onDelete,
-          },
-        ]);
-      }}
-      style={({ pressed }) => [
-        styles.taskCard,
-        {
-          backgroundColor: colors.surface,
-          borderColor: colors.border,
-          opacity: pressed ? 0.85 : 1,
-        },
-      ]}
-    >
-      <Pressable onPress={onToggle} style={styles.taskCheck}>
-        <View
-          style={[
-            styles.checkbox,
-            isDone
-              ? { backgroundColor: colors.tint, borderColor: colors.tint }
-              : { borderColor: colors.border },
-          ]}
-        >
-          {isDone && <Feather name="check" size={12} color="#FFF" />}
-        </View>
-      </Pressable>
-      <View style={styles.taskContent}>
-        <Text
-          style={[
-            styles.taskTitle,
-            { color: colors.text },
-            isDone && { textDecorationLine: "line-through", color: colors.textSecondary },
-          ]}
-          numberOfLines={2}
-        >
-          {task.title}
-        </Text>
-        <View style={styles.taskMeta}>
-          {project && (
-            <View style={[styles.projectBadge, { backgroundColor: project.color + "20" }]}>
-              <Text style={{ fontSize: 10 }}>{project.emoji}</Text>
-              <Text style={[styles.projectBadgeText, { color: project.color }]}>
-                {project.name}
-              </Text>
-            </View>
-          )}
-          <View
-            style={[
-              styles.priorityDot,
-              { backgroundColor: priorityColors[task.priority] },
-            ]}
-          />
-          <Text
-            style={[styles.priorityLabel, { color: priorityColors[task.priority] }]}
-          >
-            {PRIORITY_CONFIG[task.priority].label}
-          </Text>
-          {task.dueDate && (
-            <>
-              <Text style={[styles.separator, { color: colors.border }]}>·</Text>
-              <Text style={[styles.dueDate, { color: colors.textSecondary }]}>
-                {new Date(task.dueDate).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                })}
-              </Text>
-            </>
-          )}
-        </View>
-      </View>
-      <View
-        style={[
-          styles.statusPill,
-          {
-            backgroundColor:
-              task.status === "in_progress"
-                ? colors.warning + "20"
-                : task.status === "done"
-                ? colors.success + "20"
-                : colors.border,
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            opacity: pressed ? 0.85 : 1,
           },
         ]}
       >
-        <Text
+        <Pressable onPress={onToggle} style={styles.taskCheck}>
+          <View
+            style={[
+              styles.checkbox,
+              isDone
+                ? { backgroundColor: colors.tint, borderColor: colors.tint }
+                : { borderColor: colors.border },
+            ]}
+          >
+            {isDone && <Feather name="check" size={12} color="#FFF" />}
+          </View>
+        </Pressable>
+        <View style={styles.taskContent}>
+          <Text
+            style={[
+              styles.taskTitle,
+              { color: colors.text },
+              isDone && {
+                textDecorationLine: "line-through",
+                color: colors.textSecondary,
+              },
+            ]}
+            numberOfLines={2}
+          >
+            {task.title}
+          </Text>
+          <View style={styles.taskMeta}>
+            {project && (
+              <View
+                style={[
+                  styles.projectBadge,
+                  { backgroundColor: project.color + "20" },
+                ]}
+              >
+                <Text style={{ fontSize: 10 }}>{project.emoji}</Text>
+                <Text
+                  style={[styles.projectBadgeText, { color: project.color }]}
+                >
+                  {project.name}
+                </Text>
+              </View>
+            )}
+            <View
+              style={[
+                styles.priorityDot,
+                { backgroundColor: priorityColors[task.priority] },
+              ]}
+            />
+            <Text
+              style={[
+                styles.priorityLabel,
+                { color: priorityColors[task.priority] },
+              ]}
+            >
+              {PRIORITY_CONFIG[task.priority].label}
+            </Text>
+            {task.dueDate && (
+              <>
+                <Text style={[styles.separator, { color: colors.border }]}>
+                  ·
+                </Text>
+                <Text style={[styles.dueDate, { color: colors.textSecondary }]}>
+                  {new Date(task.dueDate).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </Text>
+              </>
+            )}
+          </View>
+        </View>
+        <View
           style={[
-            styles.statusPillText,
+            styles.statusPill,
             {
-              color:
+              backgroundColor:
                 task.status === "in_progress"
-                  ? colors.warning
+                  ? colors.warning + "20"
                   : task.status === "done"
-                  ? colors.success
-                  : colors.textSecondary,
+                    ? colors.success + "20"
+                    : colors.border,
             },
           ]}
         >
-          {STATUS_CONFIG[task.status].label}
-        </Text>
-      </View>
-    </Pressable>
-  );
-}
+          <Text
+            style={[
+              styles.statusPillText,
+              {
+                color:
+                  task.status === "in_progress"
+                    ? colors.warning
+                    : task.status === "done"
+                      ? colors.success
+                      : colors.textSecondary,
+              },
+            ]}
+          >
+            {STATUS_CONFIG[task.status].label}
+          </Text>
+        </View>
+      </Pressable>
+    );
+  }
+);
 
 export default function TasksScreen() {
   const colorScheme = useColorScheme();
@@ -184,7 +214,9 @@ export default function TasksScreen() {
   } = useApp();
 
   const [selectedProject, setSelectedProject] = useState<string | "all">("all");
-  const [selectedStatus, setSelectedStatus] = useState<TaskStatus | "all">("all");
+  const [selectedStatus, setSelectedStatus] = useState<TaskStatus | "all">(
+    "all"
+  );
   const [showAddTask, setShowAddTask] = useState(false);
   const [showAddProject, setShowAddProject] = useState(false);
 
@@ -198,11 +230,14 @@ export default function TasksScreen() {
   const [newProjEmoji, setNewProjEmoji] = useState("💼");
   const [newProjColor, setNewProjColor] = useState(PROJECT_COLORS[0]);
 
-  const filteredTasks = tasks.filter((t) => {
-    if (selectedProject !== "all" && t.projectId !== selectedProject) return false;
-    if (selectedStatus !== "all" && t.status !== selectedStatus) return false;
-    return true;
-  });
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((t) => {
+      if (selectedProject !== "all" && t.projectId !== selectedProject)
+        return false;
+      if (selectedStatus !== "all" && t.status !== selectedStatus) return false;
+      return true;
+    });
+  }, [tasks, selectedProject, selectedStatus]);
 
   const handleToggleTask = useCallback(
     (task: Task) => {
@@ -211,23 +246,29 @@ export default function TasksScreen() {
         task.status === "todo"
           ? "in_progress"
           : task.status === "in_progress"
-          ? "done"
-          : "todo";
+            ? "done"
+            : "todo";
       updateTask(task.id, { status: next });
     },
     [updateTask]
   );
 
   const handleAddTask = useCallback(() => {
-    if (!newTaskTitle.trim()) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    addTask({
-      title: newTaskTitle.trim(),
-      description: newTaskDesc.trim(),
+    const validation = validateTaskInput({
+      title: newTaskTitle,
+      description: newTaskDesc,
       priority: newTaskPriority,
       status: newTaskStatus,
-      projectId: newTaskProject || (projects[0]?.id ?? ""),
+      projectId: newTaskProject,
     });
+
+    if (!validation.isValid) {
+      Alert.alert("Validation Error", validation.errors[0]);
+      return;
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    addTask(validation.sanitizedTask);
     setNewTaskTitle("");
     setNewTaskDesc("");
     setNewTaskPriority("medium");
@@ -240,30 +281,38 @@ export default function TasksScreen() {
     newTaskPriority,
     newTaskStatus,
     newTaskProject,
-    projects,
     addTask,
   ]);
 
   const handleAddProject = useCallback(() => {
-    if (!newProjName.trim()) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    addProject({
-      name: newProjName.trim(),
+    const validation = validateProjectInput({
+      name: newProjName,
       emoji: newProjEmoji,
       color: newProjColor,
       description: "",
     });
+
+    if (!validation.isValid) {
+      Alert.alert("Validation Error", validation.errors[0]);
+      return;
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    addProject(validation.sanitizedProject);
     setNewProjName("");
     setNewProjEmoji("💼");
     setNewProjColor(PROJECT_COLORS[0]);
     setShowAddProject(false);
   }, [newProjName, newProjEmoji, newProjColor, addProject]);
 
-  const topInset = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
+  const topInset =
+    Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
   const todo = filteredTasks.filter((t) => t.status === "todo").length;
-  const inProgress = filteredTasks.filter((t) => t.status === "in_progress").length;
+  const inProgress = filteredTasks.filter(
+    (t) => t.status === "in_progress"
+  ).length;
   const done = filteredTasks.filter((t) => t.status === "done").length;
 
   return (
@@ -283,9 +332,16 @@ export default function TasksScreen() {
         <View style={styles.headerActions}>
           <Pressable
             onPress={() => setShowAddProject(true)}
-            style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.6 : 1 }]}
+            style={({ pressed }) => [
+              styles.iconBtn,
+              { opacity: pressed ? 0.6 : 1 },
+            ]}
           >
-            <Feather name="folder-plus" size={20} color={colors.textSecondary} />
+            <Feather
+              name="folder-plus"
+              size={20}
+              color={colors.textSecondary}
+            />
           </Pressable>
           <Pressable
             onPress={() => setShowAddTask(true)}
@@ -352,9 +408,7 @@ export default function TasksScreen() {
           <Pressable
             key={proj.id}
             onPress={() =>
-              setSelectedProject(
-                selectedProject === proj.id ? "all" : proj.id
-              )
+              setSelectedProject(selectedProject === proj.id ? "all" : proj.id)
             }
             onLongPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -371,9 +425,7 @@ export default function TasksScreen() {
               styles.projectChip,
               {
                 backgroundColor:
-                  selectedProject === proj.id
-                    ? proj.color
-                    : proj.color + "18",
+                  selectedProject === proj.id ? proj.color : proj.color + "18",
                 borderColor:
                   selectedProject === proj.id ? proj.color : "transparent",
                 opacity: pressed ? 0.8 : 1,
@@ -385,8 +437,7 @@ export default function TasksScreen() {
               style={[
                 styles.projectChipText,
                 {
-                  color:
-                    selectedProject === proj.id ? "#FFF" : proj.color,
+                  color: selectedProject === proj.id ? "#FFF" : proj.color,
                 },
               ]}
             >
@@ -412,8 +463,7 @@ export default function TasksScreen() {
               {
                 backgroundColor:
                   selectedStatus === s ? colors.tint + "20" : "transparent",
-                borderColor:
-                  selectedStatus === s ? colors.tint : colors.border,
+                borderColor: selectedStatus === s ? colors.tint : colors.border,
                 opacity: pressed ? 0.8 : 1,
               },
             ]}
@@ -430,10 +480,10 @@ export default function TasksScreen() {
               {s === "all"
                 ? "All"
                 : s === "in_progress"
-                ? "In Progress"
-                : s === "todo"
-                ? "To Do"
-                : "Done"}
+                  ? "In Progress"
+                  : s === "todo"
+                    ? "To Do"
+                    : "Done"}
             </Text>
           </Pressable>
         ))}
@@ -443,6 +493,16 @@ export default function TasksScreen() {
       <FlatList
         data={filteredTasks}
         keyExtractor={(t) => t.id}
+        getItemLayout={(data, index) => ({
+          length: 80,
+          offset: 80 * index,
+          index,
+        })}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        windowSize={10}
+        initialNumToRender={15}
         contentContainerStyle={[
           styles.taskList,
           { paddingBottom: bottomInset + 100 },
@@ -475,9 +535,13 @@ export default function TasksScreen() {
         onRequestClose={() => setShowAddTask(false)}
       >
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+          <View
+            style={[styles.modalHeader, { borderBottomColor: colors.border }]}
+          >
             <Pressable onPress={() => setShowAddTask(false)}>
-              <Text style={[styles.modalCancel, { color: colors.textSecondary }]}>
+              <Text
+                style={[styles.modalCancel, { color: colors.textSecondary }]}
+              >
                 Cancel
               </Text>
             </Pressable>
@@ -497,7 +561,10 @@ export default function TasksScreen() {
               </Text>
             </Pressable>
           </View>
-          <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.modalBody}
+            showsVerticalScrollIndicator={false}
+          >
             <TextInput
               style={[
                 styles.modalInput,
@@ -522,7 +589,9 @@ export default function TasksScreen() {
               multiline
             />
 
-            <Text style={[styles.modalSection, { color: colors.textSecondary }]}>
+            <Text
+              style={[styles.modalSection, { color: colors.textSecondary }]}
+            >
               Priority
             </Text>
             <View style={styles.optionRow}>
@@ -538,16 +607,16 @@ export default function TasksScreen() {
                           ? (p === "high"
                               ? colors.taskHigh
                               : p === "medium"
-                              ? colors.taskMedium
-                              : colors.taskLow) + "20"
+                                ? colors.taskMedium
+                                : colors.taskLow) + "20"
                           : colors.surface,
                       borderColor:
                         newTaskPriority === p
                           ? p === "high"
                             ? colors.taskHigh
                             : p === "medium"
-                            ? colors.taskMedium
-                            : colors.taskLow
+                              ? colors.taskMedium
+                              : colors.taskLow
                           : colors.border,
                     },
                   ]}
@@ -561,8 +630,8 @@ export default function TasksScreen() {
                             ? p === "high"
                               ? colors.taskHigh
                               : p === "medium"
-                              ? colors.taskMedium
-                              : colors.taskLow
+                                ? colors.taskMedium
+                                : colors.taskLow
                             : colors.textSecondary,
                         fontFamily:
                           newTaskPriority === p
@@ -577,7 +646,9 @@ export default function TasksScreen() {
               ))}
             </View>
 
-            <Text style={[styles.modalSection, { color: colors.textSecondary }]}>
+            <Text
+              style={[styles.modalSection, { color: colors.textSecondary }]}
+            >
               Status
             </Text>
             <View style={styles.optionRow}>
@@ -618,7 +689,9 @@ export default function TasksScreen() {
               ))}
             </View>
 
-            <Text style={[styles.modalSection, { color: colors.textSecondary }]}>
+            <Text
+              style={[styles.modalSection, { color: colors.textSecondary }]}
+            >
               Project
             </Text>
             <View style={styles.optionRow}>
@@ -634,9 +707,7 @@ export default function TasksScreen() {
                           ? proj.color + "20"
                           : colors.surface,
                       borderColor:
-                        newTaskProject === proj.id
-                          ? proj.color
-                          : colors.border,
+                        newTaskProject === proj.id ? proj.color : colors.border,
                     },
                   ]}
                 >
@@ -673,9 +744,13 @@ export default function TasksScreen() {
         onRequestClose={() => setShowAddProject(false)}
       >
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+          <View
+            style={[styles.modalHeader, { borderBottomColor: colors.border }]}
+          >
             <Pressable onPress={() => setShowAddProject(false)}>
-              <Text style={[styles.modalCancel, { color: colors.textSecondary }]}>
+              <Text
+                style={[styles.modalCancel, { color: colors.textSecondary }]}
+              >
                 Cancel
               </Text>
             </Pressable>
@@ -709,7 +784,9 @@ export default function TasksScreen() {
               autoFocus
             />
 
-            <Text style={[styles.modalSection, { color: colors.textSecondary }]}>
+            <Text
+              style={[styles.modalSection, { color: colors.textSecondary }]}
+            >
               Emoji
             </Text>
             <View style={styles.emojiRow}>
@@ -734,7 +811,9 @@ export default function TasksScreen() {
               ))}
             </View>
 
-            <Text style={[styles.modalSection, { color: colors.textSecondary }]}>
+            <Text
+              style={[styles.modalSection, { color: colors.textSecondary }]}
+            >
               Color
             </Text>
             <View style={styles.colorRow}>
@@ -846,7 +925,12 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     marginBottom: 4,
   },
-  taskMeta: { flexDirection: "row", alignItems: "center", gap: 4, flexWrap: "wrap" },
+  taskMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flexWrap: "wrap",
+  },
   projectBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -935,7 +1019,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   emojiText: { fontSize: 22 },
-  colorRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 24 },
+  colorRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 24,
+  },
   colorBtn: {
     width: 36,
     height: 36,

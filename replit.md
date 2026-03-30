@@ -81,7 +81,28 @@ OpenAPI 3.1 spec + Orval codegen. Run codegen: `pnpm --filter @workspace/api-spe
 
 ### `lib/integrations-openai-ai-server` (`@workspace/integrations-openai-ai-server`)
 
-OpenAI server-side client (chat completions, images, audio). Uses `AI_INTEGRATIONS_OPENAI_BASE_URL` and `AI_INTEGRATIONS_OPENAI_API_KEY` env vars (auto-provisioned by Replit).
+OpenAI server-side client (chat completions, images, audio). Uses comprehensive AI configuration with centralized validation:
+
+**Required Environment Variables:**
+- `AI_INTEGRATIONS_OPENAI_API_KEY` — OpenAI API key (auto-provisioned on Replit)
+
+**Optional Configuration:**
+- `AI_INTEGRATIONS_OPENAI_BASE_URL` — Custom OpenAI base URL (default: https://api.openai.com/v1)
+- `AI_INTEGRATIONS_OPENAI_CHAT_MODEL` — Chat model (default: gpt-4)
+- `AI_INTEGRATIONS_OPENAI_IMAGE_MODEL` — Image generation model (default: dall-e-3)
+- `AI_INTEGRATIONS_OPENAI_AUDIO_MODEL` — Audio transcription model (default: whisper-1)
+- `AI_INTEGRATIONS_OPENAI_MAX_TOKENS` — Max completion tokens (default: 4096)
+- `AI_INTEGRATIONS_OPENAI_TEMPERATURE` — Request temperature 0.0-2.0 (default: 0.7)
+- `AI_INTEGRATIONS_OPENAI_TIMEOUT_MS` — Request timeout in milliseconds (default: 30000)
+- `AI_INTEGRATIONS_OPENAI_RATE_LIMIT_RPM` — Rate limit: requests per minute (default: 60)
+- `AI_INTEGRATIONS_OPENAI_RATE_LIMIT_TPM` — Rate limit: tokens per minute (default: 100000)
+- `AI_INTEGRATIONS_OPENAI_ENABLE_STREAMING` — Enable streaming responses (default: true)
+- `AI_INTEGRATIONS_OPENAI_ENABLE_IMAGES` — Enable image generation (default: true)
+- `AI_INTEGRATIONS_OPENAI_ENABLE_AUDIO` — Enable audio transcription (default: true)
+- `AI_INTEGRATIONS_OPENAI_ORG_ID` — Optional organization ID for team accounts
+- `AI_INTEGRATIONS_OPENAI_PROJECT_ID` — Optional project ID for usage tracking
+
+All AI configuration is validated at startup with clear error messages. See `.env.example` for complete configuration options.
 
 ## Database
 

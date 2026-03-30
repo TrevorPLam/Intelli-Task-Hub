@@ -11,6 +11,7 @@ import {
 } from "@workspace/api-zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { parseParams, parseBody, createError } from "../../lib/validate";
+import { getDefaultChatCompletionParams } from "../../../config/ai";
 
 const router: IRouter = Router();
 
@@ -205,9 +206,9 @@ router.post("/:id/messages", async (req, res) => {
   let fullResponse = "";
 
   try {
+    const defaultParams = getDefaultChatCompletionParams();
     const stream = await openai.chat.completions.create({
-      model: "gpt-5.2",
-      max_completion_tokens: 8192,
+      ...defaultParams,
       messages: [
         {
           role: "system",
@@ -216,7 +217,6 @@ router.post("/:id/messages", async (req, res) => {
         },
         ...chatMessages,
       ],
-      stream: true,
     });
 
     for await (const chunk of stream) {

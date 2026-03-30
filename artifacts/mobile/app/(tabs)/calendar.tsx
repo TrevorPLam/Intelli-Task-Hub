@@ -1,9 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   Alert,
-  FlatList,
   Modal,
   Platform,
   Pressable,
@@ -21,13 +20,29 @@ import { useApp, type CalendarEvent } from "@/context/AppContext";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 const EVENT_COLORS = [
-  "#6C63FF", "#10B981", "#F59E0B", "#EF4444",
-  "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6",
+  "#6C63FF",
+  "#10B981",
+  "#F59E0B",
+  "#EF4444",
+  "#3B82F6",
+  "#8B5CF6",
+  "#EC4899",
+  "#14B8A6",
 ];
 
 function getDaysInMonth(year: number, month: number) {
@@ -124,7 +139,8 @@ export default function CalendarScreen() {
     addEvent,
   ]);
 
-  const topInset = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
+  const topInset =
+    Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
   const calendarGrid: (number | null)[] = [];
@@ -215,10 +231,9 @@ export default function CalendarScreen() {
               return <View key={`empty-${index}`} style={styles.cell} />;
             }
             const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-            const isToday =
-              dateStr === today.toISOString().split("T")[0];
+            const isToday = dateStr === today.toISOString().split("T")[0];
             const isSelected = dateStr === selectedDate;
-            const hasEvents = !!(eventsByDate[dateStr]?.length);
+            const hasEvents = !!eventsByDate[dateStr]?.length;
 
             return (
               <Pressable
@@ -238,18 +253,18 @@ export default function CalendarScreen() {
                     isSelected && {
                       backgroundColor: colors.tint,
                     },
-                    isToday && !isSelected && {
-                      borderWidth: 2,
-                      borderColor: colors.tint,
-                    },
+                    isToday &&
+                      !isSelected && {
+                        borderWidth: 2,
+                        borderColor: colors.tint,
+                      },
                   ]}
                 >
                   <Text
                     style={[
                       styles.dayText,
                       { color: isSelected ? "#FFF" : colors.text },
-                      isToday &&
-                        !isSelected && { color: colors.tint },
+                      isToday && !isSelected && { color: colors.tint },
                     ]}
                   >
                     {day}
@@ -311,24 +326,42 @@ export default function CalendarScreen() {
                   },
                 ]}
               >
-                <View style={[styles.eventColorBar, { backgroundColor: event.color }]} />
+                <View
+                  style={[
+                    styles.eventColorBar,
+                    { backgroundColor: event.color },
+                  ]}
+                />
                 <View style={styles.eventContent}>
                   <Text style={[styles.eventTitle, { color: colors.text }]}>
                     {event.title}
                   </Text>
                   {event.allDay ? (
-                    <Text style={[styles.eventTime, { color: colors.textSecondary }]}>
+                    <Text
+                      style={[
+                        styles.eventTime,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
                       All day
                     </Text>
                   ) : event.time ? (
-                    <Text style={[styles.eventTime, { color: colors.textSecondary }]}>
+                    <Text
+                      style={[
+                        styles.eventTime,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
                       {event.time}
                       {event.endTime ? ` – ${event.endTime}` : ""}
                     </Text>
                   ) : null}
                   {event.description ? (
                     <Text
-                      style={[styles.eventDesc, { color: colors.textSecondary }]}
+                      style={[
+                        styles.eventDesc,
+                        { color: colors.textSecondary },
+                      ]}
                       numberOfLines={1}
                     >
                       {event.description}
@@ -375,7 +408,10 @@ export default function CalendarScreen() {
               </Text>
             </Pressable>
           </View>
-          <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.modalBody}
+            showsVerticalScrollIndicator={false}
+          >
             <TextInput
               style={[
                 styles.modalInput,
@@ -388,13 +424,18 @@ export default function CalendarScreen() {
               onChangeText={setNewTitle}
               autoFocus
             />
-            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
-              {new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
+            <Text
+              style={[styles.modalSubtitle, { color: colors.textSecondary }]}
+            >
+              {new Date(selectedDate + "T12:00:00").toLocaleDateString(
+                "en-US",
+                {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                }
+              )}
             </Text>
 
             <View
@@ -425,7 +466,12 @@ export default function CalendarScreen() {
               <>
                 <View style={styles.timeRow}>
                   <View style={styles.timeField}>
-                    <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>
+                    <Text
+                      style={[
+                        styles.timeLabel,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
                       Start
                     </Text>
                     <TextInput
@@ -443,7 +489,12 @@ export default function CalendarScreen() {
                     />
                   </View>
                   <View style={styles.timeField}>
-                    <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>
+                    <Text
+                      style={[
+                        styles.timeLabel,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
                       End
                     </Text>
                     <TextInput
@@ -476,7 +527,9 @@ export default function CalendarScreen() {
               multiline
             />
 
-            <Text style={[styles.modalSection, { color: colors.textSecondary }]}>
+            <Text
+              style={[styles.modalSection, { color: colors.textSecondary }]}
+            >
               Color
             </Text>
             <View style={styles.colorRow}>
@@ -578,7 +631,11 @@ const styles = StyleSheet.create({
   },
   eventColorBar: { width: 4 },
   eventContent: { flex: 1, padding: 12 },
-  eventTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", marginBottom: 2 },
+  eventTitle: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    marginBottom: 2,
+  },
   eventTime: { fontSize: 12, fontFamily: "Inter_400Regular", marginBottom: 2 },
   eventDesc: { fontSize: 12, fontFamily: "Inter_400Regular" },
   modal: { flex: 1 },
@@ -659,7 +716,12 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 10,
   },
-  colorRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 24 },
+  colorRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 24,
+  },
   colorBtn: {
     width: 36,
     height: 36,

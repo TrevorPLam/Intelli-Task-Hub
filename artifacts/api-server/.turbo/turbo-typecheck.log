@@ -3,5 +3,5 @@
 > tsc -p tsconfig.json --noEmit
 
 src/routes/__tests__/health.test.ts(13,32): error TS6133: 'vi' is declared but its value is never read.
-src/routes/__tests__/index.test.ts(13,32): error TS6133: 'vi' is declared but its value is never read.
+src/routes/__tests__/index.test.ts(8,32): error TS6133: 'vi' is declared but its value is never read.
  ELIFECYCLE  Command failed with exit code 2.

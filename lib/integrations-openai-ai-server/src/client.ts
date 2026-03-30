@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { getOpenAIClientConfig } from "../../../src/config/ai";
 
 /**
  * Shared OpenAI Client Factory
@@ -11,29 +12,16 @@ import OpenAI from "openai";
  * - Centralized environment variable validation
  */
 
-// Validate environment variables at module load time
-if (!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL) {
-  throw new Error(
-    "AI_INTEGRATIONS_OPENAI_BASE_URL must be set. Did you forget to provision the OpenAI AI integration?"
-  );
-}
-
-if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
-  throw new Error(
-    "AI_INTEGRATIONS_OPENAI_API_KEY must be set. Did you forget to provision the OpenAI AI integration?"
-  );
-}
-
 /**
  * Singleton OpenAI client instance
  *
  * ESM module caching ensures this is created only once per process.
  * All modules importing this will receive the same instance.
+ *
+ * Configuration is sourced from the centralized AI configuration module
+ * which provides type safety and validation.
  */
-export const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+export const openai = new OpenAI(getOpenAIClientConfig());
 
 /**
  * Get the OpenAI client instance

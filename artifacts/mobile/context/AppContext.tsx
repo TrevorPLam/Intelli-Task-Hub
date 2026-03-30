@@ -91,17 +91,6 @@ const TASKS_KEY = "@tasks";
 const EVENTS_KEY = "@events";
 const EMAILS_KEY = "@emails";
 
-const PROJECT_COLORS = [
-  "#6C63FF",
-  "#F59E0B",
-  "#10B981",
-  "#EF4444",
-  "#3B82F6",
-  "#8B5CF6",
-  "#EC4899",
-  "#14B8A6",
-];
-
 const SEED_PROJECTS: Project[] = [
   {
     id: "p1",
@@ -310,22 +299,58 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!loaded) return;
-    AsyncStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
+
+    const saveProjects = async () => {
+      try {
+        await AsyncStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
+      } catch (error) {
+        console.warn("Failed to save projects:", error);
+      }
+    };
+
+    saveProjects();
   }, [projects, loaded]);
 
   useEffect(() => {
     if (!loaded) return;
-    AsyncStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
+
+    const saveTasks = async () => {
+      try {
+        await AsyncStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
+      } catch (error) {
+        console.warn("Failed to save tasks:", error);
+      }
+    };
+
+    saveTasks();
   }, [tasks, loaded]);
 
   useEffect(() => {
     if (!loaded) return;
-    AsyncStorage.setItem(EVENTS_KEY, JSON.stringify(events));
+
+    const saveEvents = async () => {
+      try {
+        await AsyncStorage.setItem(EVENTS_KEY, JSON.stringify(events));
+      } catch (error) {
+        console.warn("Failed to save events:", error);
+      }
+    };
+
+    saveEvents();
   }, [events, loaded]);
 
   useEffect(() => {
     if (!loaded) return;
-    AsyncStorage.setItem(EMAILS_KEY, JSON.stringify(emails));
+
+    const saveEmails = async () => {
+      try {
+        await AsyncStorage.setItem(EMAILS_KEY, JSON.stringify(emails));
+      } catch (error) {
+        console.warn("Failed to save emails:", error);
+      }
+    };
+
+    saveEmails();
   }, [emails, loaded]);
 
   const addProject = useCallback(

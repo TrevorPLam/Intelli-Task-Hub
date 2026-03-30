@@ -8,7 +8,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -17,8 +17,6 @@ import * as SecureStore from "expo-secure-store";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppProvider } from "@/context/AppContext";
-import * as Constants from "expo-constants";
-
 // API Configuration
 // Supports both EXPO_PUBLIC_API_KEY (dev) and SecureStore (production)
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
@@ -49,7 +47,7 @@ const queryClient = new QueryClient();
 // Error reporting function
 function handleError(error: Error, componentStack: string) {
   // Generate unique error ID for user reference
-  const errorId = crypto.randomUUID();
+  const errorId = Math.random().toString(36).substr(2, 9);
 
   // Get device identifier for correlation
   const deviceId = "mobile-device"; // Simple fallback for now

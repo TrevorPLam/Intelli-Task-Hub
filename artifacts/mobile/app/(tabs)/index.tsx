@@ -1,12 +1,11 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { fetch } from "expo/fetch";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
@@ -113,14 +112,15 @@ export default function ChatScreen() {
       if (!response.body) throw new Error("No stream");
 
       const reader = response.body.getReader();
-      const decoder = new TextDecoder();
       let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
+        // Convert Uint8Array to string manually for React Native compatibility
+        const chunk = String.fromCharCode.apply(null, Array.from(value));
+        buffer += chunk;
 
         // DoS protection: limit buffer size
         if (buffer.length > MAX_BUFFER_SIZE) {
@@ -172,7 +172,7 @@ export default function ChatScreen() {
       }
 
       // Process final buffer
-      buffer += decoder.decode();
+      buffer += ""; // No decoder needed for final buffer
       const { events, remaining } = parseSseChunk(buffer);
 
       for (const event of events) {

@@ -4,6 +4,7 @@ import { logger } from "./lib/logger";
 import { initializeAuth } from "./middlewares/auth";
 import { closePool } from "@workspace/db";
 import type { Server } from "node:http";
+import "../../../src/config/ai"; // Import to trigger AI configuration validation
 
 /**
  * @file Server entry point with startup validation

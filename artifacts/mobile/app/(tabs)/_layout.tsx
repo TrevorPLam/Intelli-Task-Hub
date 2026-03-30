@@ -4,7 +4,6 @@ import { Tabs } from "expo-router";
 import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
-import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 
 import Colors from "@/constants/colors";
@@ -13,7 +12,9 @@ function NativeTabLayout() {
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "message.circle", selected: "message.circle.fill" }} />
+        <Icon
+          sf={{ default: "message.circle", selected: "message.circle.fill" }}
+        />
         <Label>Chat</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="tasks">
@@ -84,7 +85,11 @@ function ClassicTabLayout() {
           title: "Chat",
           tabBarIcon: ({ color, size }) =>
             isIOS ? (
-              <SymbolView name="message.circle.fill" tintColor={color} size={size} />
+              <SymbolView
+                name="message.circle.fill"
+                tintColor={color}
+                size={size}
+              />
             ) : (
               <Feather name="message-circle" size={size} color={color} />
             ),
