@@ -45,12 +45,38 @@ app.use(helmet());
 // CORS must be registered BEFORE auth middleware so preflight requests are not rejected
 app.use(
   cors({
-    origin: corsOrigins,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (server-to-server, mobile apps, curl, Postman)
+      if (!origin) return callback(null, true);
+
+      const allowed = corsOrigins;
+      if (allowed === true) {
+        // Development wildcard mode
+        return callback(null, true);
+      }
+      if (Array.isArray(allowed) && allowed.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // Reject with logging for security monitoring
+      logger.warn({ origin }, "CORS request rejected: origin not in allowlist");
+      callback(new Error(`CORS: Origin ${origin} not allowed`));
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-API-Key"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Request-ID"],
+    exposedHeaders: ["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Retry-After"],
+    maxAge: 86400, // Cache preflight for 24 hours
   }),
 );
+
+// Add Vary: Origin header when using dynamic origin validation
+app.use((req, res, next) => {
+  if (Array.isArray(corsOrigins) && corsOrigins.length > 1) {
+    res.vary("Origin");
+  }
+  next();
+});
 
 app.use(
   pinoHttp({
