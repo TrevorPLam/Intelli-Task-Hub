@@ -180,8 +180,7 @@ export default function EmailScreen() {
   const isDark = colorScheme === "dark";
   const colors = isDark ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
-  const { emails, markEmailRead, toggleEmailStar, deleteEmail, sendEmail } =
-    useApp();
+  const { emails, markEmailRead, toggleEmailStar, deleteEmail } = useApp();
 
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [showCompose, setShowCompose] = useState(false);
@@ -370,8 +369,8 @@ export default function EmailScreen() {
                   }}
                   style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
                 >
-                  <Feather
-                    name="star"
+                  <Ionicons
+                    name={selectedEmail.starred ? "star" : "star-outline"}
                     size={20}
                     color={
                       selectedEmail.starred

@@ -95,14 +95,18 @@ export default function ChatScreen() {
 
     let assembled = "";
 
+    const MAX_BUFFER_SIZE = 1024 * 1024; // 1MB max buffer for DoS protection
+
     try {
       const baseUrl = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+      const abortController = new AbortController();
       const response = await fetch(
         `${baseUrl}/api/openai/conversations/${conversationId}/messages`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content: currentInput }),
+          signal: abortController.signal,
         }
       );
 
@@ -118,6 +122,11 @@ export default function ChatScreen() {
 
         buffer += decoder.decode(value, { stream: true });
 
+        // DoS protection: limit buffer size
+        if (buffer.length > MAX_BUFFER_SIZE) {
+          throw new Error("SSE buffer exceeded maximum size");
+        }
+
         const { events, remaining } = parseSseChunk(buffer);
         buffer = remaining;
 
@@ -126,6 +135,16 @@ export default function ChatScreen() {
           if (data) {
             try {
               const parsed = JSON.parse(data);
+              // Validate expected shape: {content?: string, done?: boolean}
+              if (typeof parsed !== "object" || parsed === null) {
+                throw new Error("Invalid SSE data: not an object");
+              }
+              if (parsed.content && typeof parsed.content !== "string") {
+                throw new Error("Invalid SSE data: content must be string");
+              }
+              if (parsed.done && typeof parsed.done !== "boolean") {
+                throw new Error("Invalid SSE data: done must be boolean");
+              }
               if (parsed.content) {
                 assembled += parsed.content;
                 setStreamingContent(assembled);
@@ -140,8 +159,13 @@ export default function ChatScreen() {
                 setStreamingContent("");
                 assembled = "";
               }
-            } catch {
-              // Ignore parse errors for malformed chunks
+            } catch (err) {
+              if (__DEV__) {
+                console.warn(
+                  "SSE parse error:",
+                  err instanceof Error ? err.message : String(err)
+                );
+              }
             }
           }
         }
