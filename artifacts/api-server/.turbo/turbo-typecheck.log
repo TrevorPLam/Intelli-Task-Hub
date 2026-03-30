@@ -2,6 +2,28 @@
 > @workspace/api-server@0.0.0 typecheck C:\Users\trevo\OneDrive\Desktop\Intelli-Task-Hub\artifacts\api-server
 > tsc -p tsconfig.json --noEmit
 
+src/index.ts(7,8): error TS6059: File 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/src/config/ai.ts' is not under 'rootDir' 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/artifacts/api-server/src'. 'rootDir' is expected to contain all source files.
 src/routes/__tests__/health.test.ts(13,32): error TS6133: 'vi' is declared but its value is never read.
 src/routes/__tests__/index.test.ts(8,32): error TS6133: 'vi' is declared but its value is never read.
+src/routes/openai/conversations.ts(14,48): error TS2307: Cannot find module '../../../config/ai' or its corresponding type declarations.
+src/routes/openai/conversations.ts(222,31): error TS2504: Type 'ChatCompletion & { _request_id?: string | null | undefined; }' must have a '[Symbol.asyncIterator]()' method that returns an async iterator.
+../../src/config/ai.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+../../src/config/ai.ts(2,32): error TS6059: File 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/src/config/migration.ts' is not under 'rootDir' 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/artifacts/api-server/src'. 'rootDir' is expected to contain all source files.
+../../src/config/ai.ts(3,31): error TS6059: File 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/src/config/audit.ts' is not under 'rootDir' 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/artifacts/api-server/src'. 'rootDir' is expected to contain all source files.
+../../src/config/ai.ts(208,16): error TS2341: Property 'currentVersion' is private and only accessible within class 'ConfigMigrator'.
+../../src/config/ai.ts(224,19): error TS2339: Property 'violations' does not exist on type '{ valid: boolean; errors: string[]; }'.
+../../src/config/ai.ts(224,39): error TS7006: Parameter 'violation' implicitly has an 'any' type.
+../../src/config/ai.ts(228,66): error TS2339: Property 'violations' does not exist on type '{ valid: boolean; errors: string[]; }'.
+../../src/config/audit.ts(43,14): error TS2323: Cannot redeclare exported variable 'ConfigAuditor'.
+../../src/config/audit.ts(45,11): error TS6133: 'complianceReportPath' is declared but its value is never read.
+../../src/config/audit.ts(120,5): error TS1016: A required parameter cannot follow an optional parameter.
+../../src/config/audit.ts(311,10): error TS2323: Cannot redeclare exported variable 'ConfigAuditor'.
+../../src/config/audit.ts(311,10): error TS2484: Export declaration conflicts with exported declaration of 'ConfigAuditor'.
+../../src/config/migration.ts(1,1): error TS6133: 'z' is declared but its value is never read.
+../../src/config/migration.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+../../src/config/migration.ts(2,1): error TS6192: All imports in import declaration are unused.
+../../src/config/migration.ts(3,1): error TS6133: 'resolve' is declared but its value is never read.
+../../src/config/migration.ts(59,14): error TS2323: Cannot redeclare exported variable 'ConfigMigrator'.
+../../src/config/migration.ts(149,10): error TS2323: Cannot redeclare exported variable 'ConfigMigrator'.
+../../src/config/migration.ts(149,10): error TS2484: Export declaration conflicts with exported declaration of 'ConfigMigrator'.
  ELIFECYCLE  Command failed with exit code 2.
