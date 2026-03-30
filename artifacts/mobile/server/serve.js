@@ -12,6 +12,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const { pipeline } = require("stream");
 
 const STATIC_ROOT = path.resolve(__dirname, "..", "static-build");
 const TEMPLATE_PATH = path.resolve(__dirname, "templates", "landing-page.html");
@@ -51,7 +52,7 @@ function serveManifest(platform, res) {
   if (!fs.existsSync(manifestPath)) {
     res.writeHead(404, { "content-type": "application/json" });
     res.end(
-      JSON.stringify({ error: `Manifest not found for platform: ${platform}` }),
+      JSON.stringify({ error: `Manifest not found for platform: ${platform}` })
     );
     return;
   }
@@ -81,27 +82,100 @@ function serveLandingPage(req, res, landingPageTemplate, appName) {
   res.end(html);
 }
 
-function serveStaticFile(urlPath, res) {
+function getCacheControl(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  const basename = path.basename(filePath);
+
+  // HTML files and manifests should not be cached
+  if (ext === ".html" || basename === "manifest.json") {
+    return "no-cache, no-store";
+  }
+
+  // Hashed assets (contain hash in filename) get immutable caching
+  if (
+    /\.[a-f0-9]{8,}\.(js|css|map)$/i.test(basename) ||
+    /\.[a-f0-9]{8,}\.(png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|otf)$/i.test(
+      basename
+    )
+  ) {
+    return "public, max-age=31536000, immutable";
+  }
+
+  // Other static assets get standard caching
+  return "public, max-age=86400";
+}
+
+function generateETag(stats) {
+  // Use mtime and size for a lightweight ETag
+  return `"${stats.mtimeMs.toString(36)}-${stats.size.toString(36)}"`;
+}
+
+function serveStaticFile(urlPath, res, req) {
   const safePath = path.normalize(urlPath).replace(/^(\.\.(\/|\\|$))+/, "");
   const filePath = path.join(STATIC_ROOT, safePath);
 
+  // Path traversal protection
   if (!filePath.startsWith(STATIC_ROOT)) {
     res.writeHead(403);
     res.end("Forbidden");
     return;
   }
 
-  if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-    res.writeHead(404);
-    res.end("Not Found");
-    return;
-  }
+  // Check if file exists and is not a directory
+  fs.stat(filePath, (err, stats) => {
+    if (err || stats.isDirectory()) {
+      res.writeHead(404);
+      res.end("Not Found");
+      return;
+    }
 
-  const ext = path.extname(filePath).toLowerCase();
-  const contentType = MIME_TYPES[ext] || "application/octet-stream";
-  const content = fs.readFileSync(filePath);
-  res.writeHead(200, { "content-type": contentType });
-  res.end(content);
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = MIME_TYPES[ext] || "application/octet-stream";
+    const cacheControl = getCacheControl(filePath);
+    const etag = generateETag(stats);
+
+    // Check for conditional GET headers
+    const ifNoneMatch = req.headers["if-none-match"];
+    if (ifNoneMatch && ifNoneMatch === etag) {
+      res.writeHead(304, {
+        "cache-control": cacheControl,
+        etag: etag,
+      });
+      res.end();
+      return;
+    }
+
+    // Set headers and stream file
+    const headers = {
+      "content-type": contentType,
+      "cache-control": cacheControl,
+      etag: etag,
+      "last-modified": stats.mtime.toUTCString(),
+    };
+
+    res.writeHead(200, headers);
+
+    // Stream file with proper error handling
+    const readStream = fs.createReadStream(filePath);
+
+    readStream.on("error", (error) => {
+      console.error("Error reading file:", error);
+      if (!res.headersSent) {
+        res.writeHead(500);
+        res.end("Internal Server Error");
+      }
+    });
+
+    pipeline(readStream, res, (pipelineError) => {
+      if (pipelineError) {
+        console.error("Pipeline error:", pipelineError);
+        if (!res.headersSent) {
+          res.writeHead(500);
+          res.end("Internal Server Error");
+        }
+      }
+    });
+  });
 }
 
 const landingPageTemplate = fs.readFileSync(TEMPLATE_PATH, "utf-8");
@@ -126,7 +200,7 @@ const server = http.createServer((req, res) => {
     }
   }
 
-  serveStaticFile(pathname, res);
+  serveStaticFile(pathname, res, req);
 });
 
 const port = parseInt(process.env.PORT || "3000", 10);
