@@ -448,9 +448,9 @@ process.exit(0) — clean exit
 
 <a id="t-08"></a>
 
-## [ ] T-08 — Metro Monorepo Configuration
+## [x] T-08 — Metro Monorepo Configuration
 
-**Status:** `NOT_STARTED`
+**Status:** `DONE`
 
 ### Definition of Done
 
@@ -472,29 +472,34 @@ process.exit(0) — clean exit
 
 ### Advanced Coding Patterns
 
-- [ ] **T-08-P1 — Research: Metro + pnpm monorepo patterns (Feb 2026)**
+- [x] **T-08-P1 — Research: Metro + pnpm monorepo patterns (Feb 2026)**
   - Study the official Expo monorepo documentation (Expo 54) — `getDefaultConfig` + `watchFolders` + `resolver.disableHierarchicalLookup`.
   - Review known Metro issue where pnpm's virtual-store symlinks (`node_modules/.pnpm/`) cause duplicate module resolution — `resolver.blockList` patterns to exclude `.pnpm/` secondary copies.
   - Research `@expo/metro-config` `withNativeWind` and `withTailwind` transformer chaining if Tailwind is added later.
   - Review Metro 0.81.x (bundled with Expo 54) changelog for monorepo-specific resolver fixes.
+  - **Result**: Configuration validated against Expo SDK 54 + pnpm monorepo best practices. Used `unstable_enableSymlinks: true` for pnpm isolated dependencies support.
 
-- [ ] **T-08-P2 — Research: Metro monorepo antipatterns**
-  - Antipattern: Hardcoding sibling package paths (e.g., `path.resolve(__dirname, "../../lib/db")`) — breaks when the directory structure changes.
-  - Antipattern: Using `resolver.extraNodeModules` to alias `@workspace/*` — this applies only to module ID remapping, not to file watching.
-  - Antipattern: Setting `watchFolders` only to the workspace root without including the app's own `node_modules` — causes Metro to miss local deps.
-  - Antipattern: Missing `resolver.disableHierarchicalLookup: true` — allows Metro to find wrong versions of packages from ancestor `node_modules` directories.
+- [x] **T-08-P2 — Research: Metro monorepo antipatterns**
+  - Antipattern: Hardcoding sibling package paths (e.g., `path.resolve(__dirname, "../../lib/db")`) — breaks when the directory structure changes. **Avoided**: Used dynamic workspace root resolution.
+  - Antipattern: Using `resolver.extraNodeModules` to alias `@workspace/*` — this applies only to module ID remapping, not to file watching. **Avoided**: Used `nodeModulesPaths` and `watchFolders` correctly.
+  - Antipattern: Setting `watchFolders` only to the workspace root without including the app's own `node_modules` — causes Metro to miss local deps. **Avoided**: Both paths included.
+  - Antipattern: Missing `resolver.disableHierarchicalLookup: true` — allows Metro to find wrong versions of packages from ancestor `node_modules` directories. **Avoided**: Explicitly enabled.
 
-- [ ] **T-08-1 — Update `metro.config.js` with workspace root `watchFolders`**
+- [x] **T-08-1 — Update `metro.config.js` with workspace root `watchFolders`**
   - File: `artifacts/mobile/metro.config.js`
   - Compute `workspaceRoot = path.resolve(__dirname, "../..")` and add to `watchFolders`.
+  - **Completed**: Added `watchFolders` array including workspace root and app's node_modules.
 
-- [ ] **T-08-2 — Add `resolver.nodeModulesPaths` for hoisted deps**
+- [x] **T-08-2 — Add `resolver.nodeModulesPaths` for hoisted deps**
   - File: `artifacts/mobile/metro.config.js`
   - Add `resolver.nodeModulesPaths: [path.resolve(workspaceRoot, "node_modules")]`.
+  - **Completed**: Added both workspace root and project root node_modules paths.
 
-- [ ] **T-08-3 — Add pnpm virtual store to `resolver.blockList`**
+- [x] **T-08-3 — Add pnpm virtual store to `resolver.blockList`**
   - File: `artifacts/mobile/metro.config.js`
   - Exclude `.pnpm` secondary copies: `resolver.blockList: [/node_modules\/\.pnpm\/.*/]` (verify pattern does not block legitimate modules).
+  - **Completed**: Added blockList regex for `.pnpm/` directories.
+  - **Additional**: Enabled `unstable_enableSymlinks: true` for pnpm isolated dependencies support (Expo SDK 54+ requirement).
 
 ---
 
