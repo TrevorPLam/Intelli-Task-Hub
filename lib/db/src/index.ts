@@ -22,4 +22,3 @@ export async function closePool(): Promise<void> {
 }
 
 export * from "./schema";
-export { pool, db, closePool };
