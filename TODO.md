@@ -48,10 +48,13 @@
 ---
 
 <a id="t-01"></a>
+
 ## [x] T-01 — Authentication & Authorization Layer
+
 **Status:** `DONE`
 
 ### Definition of Done
+
 - Every API route rejects unauthenticated requests with HTTP 401.
 - JWT or API-key identity is verified in a single Express middleware applied globally.
 - The mobile client injects credentials on every request through the custom-fetch layer.
@@ -59,11 +62,13 @@
 - No credentials are logged by Pino at any log level.
 
 ### Out of Scope
+
 - Multi-user account management, OAuth/OIDC flows, or password-based registration.
 - Role-based access control beyond owner/non-owner.
 - Session persistence beyond the lifetime of the signed token.
 
 ### Rules to Follow
+
 - Secrets are read exclusively from environment variables; no hardcoded fallback values.
 - Auth middleware must be registered **before** any route handler in `app.ts`.
 - Token validation must be synchronous (HMAC-SHA256 / HS256) to avoid async errors swallowing middleware exceptions.
@@ -108,10 +113,13 @@
 ---
 
 <a id="t-02"></a>
+
 ## [x] T-02 — Rate Limiting & Request Hardening
+
 **Status:** `DONE`
 
 ### Definition of Done
+
 - [x] All `/api/openai/*` endpoints are rate-limited per IP (configurable window and max).
 - [x] All routes enforce a JSON body size limit (64kb).
 - [x] `429 Too Many Requests` responses include a `Retry-After` header.
@@ -119,17 +127,20 @@
 - [x] The OpenAI image generation and SSE streaming endpoints have stricter limits (20 req/min vs 100 req/15min).
 
 ### Out of Scope
+
 - User-account-level rate limiting (requires T-01 first).
 - Redis-backed distributed rate limiting across multiple server instances.
 - DDoS mitigation at the infrastructure layer (CDN/load balancer concern).
 
 ### Rules to Follow
+
 - Body size limit must be applied to both `express.json()` and `express.urlencoded()`. ✅
 - Rate limiter must be applied as Express middleware, not inside route handlers. ✅
 - The rate limit window and max must be configurable via environment variables with safe defaults. ✅
 - `helmet()` must be placed first — before all other middleware — in `app.ts`. ✅
 
 ### Implementation Summary
+
 - **T-02-P1** — Research completed on `express-rate-limit` v8.3.1 API with `standardHeaders: 'draft-7'` and helmet v8 defaults
 - **T-02-P2** — Antipatterns reviewed and avoided (IP-only without trustProxy, module-level Map storage, etc.)
 - **T-02-1** — `helmet()` added as first middleware in `app.ts`
@@ -142,12 +153,14 @@
 - **QA-FIX-3** — Added explicit `keyGenerator: getClientIp` for consistent IP extraction
 
 ### Environment Variables Added
-- `RATE_LIMIT_GENERAL_WINDOW_MS` — General limiter window (ms), default: 15 * 60 * 1000
+
+- `RATE_LIMIT_GENERAL_WINDOW_MS` — General limiter window (ms), default: 15 _ 60 _ 1000
 - `RATE_LIMIT_GENERAL_MAX` — General limiter max requests, default: 100
-- `RATE_LIMIT_OPENAI_WINDOW_MS` — OpenAI limiter window (ms), default: 60 * 1000
+- `RATE_LIMIT_OPENAI_WINDOW_MS` — OpenAI limiter window (ms), default: 60 \* 1000
 - `RATE_LIMIT_OPENAI_MAX` — OpenAI limiter max requests, default: 20
 
 ### Files Modified
+
 1. `artifacts/api-server/package.json` — added `helmet` and `express-rate-limit`
 2. `artifacts/api-server/src/app.ts` — added helmet, body size limits, trust proxy setting
 3. `artifacts/api-server/src/routes/index.ts` — applied rate limiters
@@ -155,6 +168,7 @@
 5. `artifacts/api-server/src/index.ts` — added env var validation
 
 ### Code Citations
+
 ```artifacts/api-server/src/app.ts:9-18
 const app: Express = express();
 
@@ -182,10 +196,13 @@ const getClientIp = (req: Request): string => {
 ---
 
 <a id="t-03"></a>
+
 ## [x] T-03 — Input Validation & Route Guards
+
 **Status:** `DONE`
 
 ### Definition of Done
+
 - [x] Every route that reads `req.params.id` validates it as a positive integer before touching the database.
 - [x] The generated Zod schemas from `lib/api-zod` are used as the validation source of truth in all routes.
 - [x] `size` in the image generation route is validated against the `GenerateOpenaiImageBodySize` enum at runtime.
@@ -193,6 +210,7 @@ const getClientIp = (req: Request): string => {
 - [x] No `as` type assertions bypass runtime validation.
 
 ### Implementation Summary
+
 - **T-03-1** — Created `src/lib/validate.ts` with `parseParams()`, `parseBody()`, and `createError()` helpers using `safeParse()` for structured error responses
 - **T-03-2** — Replaced all 4 `Number(req.params.id)` occurrences in `conversations.ts` with `parseParams()` using generated Zod schemas (`GetOpenaiConversationParams`, `DeleteOpenaiConversationParams`, `ListOpenaiMessagesParams`, `SendOpenaiMessageParams`)
 - **T-03-3** — Added enum validation in `image.ts` using `parseBody()` with `GenerateOpenaiImageBody` schema (includes `size: zod.enum([...])`)
@@ -204,6 +222,7 @@ const getClientIp = (req: Request): string => {
 - **Dependencies** — Added `zod` to `api-server/package.json` for direct schema usage in validation helpers
 
 ### Files Modified
+
 1. `artifacts/api-server/src/lib/validate.ts` — new validation helper module with `createError()`
 2. `artifacts/api-server/src/routes/openai/conversations.ts` — replaced all `Number()` calls with Zod validation, standardized 404 errors
 3. `artifacts/api-server/src/routes/openai/image.ts` — using `parseBody()` for structured error responses
@@ -211,6 +230,7 @@ const getClientIp = (req: Request): string => {
 5. `lib/db/src/schema/messages.ts` — added CHECK constraint on role column
 
 ### Code Citations
+
 ```artifacts/api-server/src/lib/validate.ts:38-47
 function mapZodError(error: ZodError): HttpError {
   return {
@@ -254,22 +274,23 @@ router.post("/:id/messages", async (req, res) => {
 ```
 
 ### Validation Error Response Format
+
 ```json
 {
   "status": 400,
   "code": "VALIDATION_ERROR",
   "message": "Request validation failed",
-  "details": [
-    { "field": "id", "message": "Expected number, received nan" }
-  ]
+  "details": [{ "field": "id", "message": "Expected number, received nan" }]
 }
 ```
 
 ### Out of Scope
+
 - Client-side Zod validation in the mobile app (separate concern from server-side guard).
 - Regenerating the Orval output (that is T-16's concern).
 
 ### Rules to Follow
+
 - Validation must occur before any database query or OpenAI call.
 - Use `zodSchema.safeParse()` (not `.parse()`) to produce structured error responses instead of thrown exceptions.
 - Replace all `Number(req.params.id)` calls with the Zod `.coerce.number().int().positive()` schema.
@@ -313,16 +334,20 @@ router.post("/:id/messages", async (req, res) => {
 ---
 
 <a id="t-04"></a>
+
 ## [x] T-04 — CORS & Security Headers
+
 **Status:** `DONE`
 
 ### Definition of Done
+
 - [x] CORS is restricted to an explicit allowlist of origins loaded from environment variables.
 - [x] Preflight `OPTIONS` requests return the correct headers and `204`.
 - [x] No wildcard `*` origin is used in any non-development environment.
 - [x] `cookie-parser` is either removed from dependencies (if not used) or registered in `app.ts`.
 
 ### Implementation Summary
+
 - **T-04-1** — Replaced wildcard `cors()` with origin allowlist from `CORS_ALLOWED_ORIGINS` env var
   - Added `parseCorsOrigins()` function in `app.ts` that parses comma-separated origins
   - Development allows wildcard if no allowlist is set; production defaults to no cross-origin access
@@ -336,11 +361,13 @@ router.post("/:id/messages", async (req, res) => {
   - `.env.example` already documented the variable
 
 ### Files Modified
+
 1. `artifacts/api-server/src/app.ts` — CORS configuration with origin allowlist, moved before auth
 2. `artifacts/api-server/package.json` — removed `cookie-parser` and `@types/cookie-parser`
 3. `replit.md` — added Environment Variables section documenting `CORS_ALLOWED_ORIGINS`
 
 ### Security Behavior
+
 - **Development** (`NODE_ENV=development`): Allows wildcard if `CORS_ALLOWED_ORIGINS` is not set
 - **Production** (no `CORS_ALLOWED_ORIGINS`): Defaults to `false` (no cross-origin access) with warning log
 - **With explicit allowlist**: Only listed origins are permitted; trailing slashes are normalized
@@ -348,69 +375,74 @@ router.post("/:id/messages", async (req, res) => {
 ---
 
 <a id="t-05"></a>
-## [ ] T-05 — Graceful Shutdown & DB Connection Lifecycle
-**Status:** `NOT_STARTED`
+
+## [x] T-05 — Graceful Shutdown & DB Connection Lifecycle
+
+**Status:** `DONE`
 
 ### Definition of Done
-- The database connection pool is cleanly closed when the server receives `SIGTERM` or `SIGINT`.
-- In-flight HTTP requests are drained before the process exits.
-- The OpenAI API key is validated at startup; the server refuses to start if it is absent.
-- Shutdown sequence is logged via Pino.
 
-### Out of Scope
-- Kubernetes liveness/readiness probes or preStop hooks.
-- Zero-downtime rolling restarts.
+- [x] The database connection pool is cleanly closed when the server receives `SIGTERM` or `SIGINT`.
+- [x] In-flight HTTP requests are drained before the process exits.
+- [x] The OpenAI API key is validated at startup; the server refuses to start if it is absent.
+- [x] Shutdown sequence is logged via Pino.
 
-### Rules to Follow
-- `pool.end()` must be awaited; do not call `process.exit()` before it resolves.
-- `server.close()` must be called before `pool.end()` to stop accepting new connections first.
-- Startup validation must use `zod` to parse `process.env` and throw with a descriptive message on failure.
-- Handle both `SIGTERM` (container stop) and `SIGINT` (Ctrl+C in development).
+### Implementation Summary
 
-### Advanced Coding Patterns
+- **T-05-1** — Added graceful shutdown handler in `index.ts`
+  - `shutdown()` async function handles `SIGTERM` and `SIGINT` signals
+  - Sequence: `server.close()` → `server.closeAllConnections()` (Node 18.2+) → `closePool()`
+  - All steps logged via Pino for observability
+  - Proper error handling with exit code 1 on failure
+- **T-05-2** — Startup Zod env validation already implemented
+  - Validates `DATABASE_URL`, `AI_INTEGRATIONS_OPENAI_API_KEY`, `API_SECRET_KEY`
+  - Server refuses to start with descriptive error messages on validation failure
+- **T-05-3** — Added `closePool()` export to `@workspace/db`
+  - Encapsulates `pool.end()` in `lib/db/src/index.ts`
+  - Provides clean async interface for connection cleanup
 
-- [ ] **T-05-P1 — Research: Node.js graceful shutdown patterns (Feb 2026)**
-  - Study `server.closeAllConnections()` (Node 18.2+) — needed for HTTP keep-alive connections that `server.close()` alone doesn't terminate.
-  - Review `http-terminator` library vs manual `closeAllConnections` for Express 5.
-  - Study Zod env validation pattern: `const env = z.object({ ... }).parse(process.env)` at module top-level with `z.string().min(32)` for secret keys.
-  - Review `node:async_hooks` `AsyncLocalStorage` pattern if per-request context is added later.
+### Files Modified
 
-- [ ] **T-05-P2 — Research: Shutdown antipatterns**
-  - Antipattern: Calling `pool.end()` inside a `setImmediate` or `process.nextTick` — async context may be lost.
-  - Antipattern: Registering shutdown handlers inside a route module — they should be at the top-level process entry point only.
-  - Antipattern: Calling `process.exit(0)` synchronously from a signal handler before awaiting async cleanup.
-  - Antipattern: Validating env vars inside route handlers — by that point, a partial server is already running.
+1. `artifacts/api-server/src/index.ts` — graceful shutdown handlers, imported `closePool` and `Server` type
+2. `lib/db/src/index.ts` — added `closePool()` function export
 
-- [ ] **T-05-1 — Add `process.on('SIGTERM'/'SIGINT')` shutdown handler**
-  - File: `artifacts/api-server/src/index.ts`
-  - Implement `async function shutdown()` that calls `server.close()` → `server.closeAllConnections()` → `pool.end()`.
+### Shutdown Sequence
 
-- [ ] **T-05-2 — Add startup Zod env validation**
-  - File: `artifacts/api-server/src/index.ts`
-  - Validate `DATABASE_URL`, `AI_INTEGRATIONS_OPENAI_API_KEY`, `API_SECRET_KEY` before creating the HTTP server.
-
-- [ ] **T-05-3 — Export `pool` shutdown from db package**
-  - File: `lib/db/src/index.ts`
-  - Export a `closePool(): Promise<void>` function to encapsulate `pool.end()` rather than exposing the pool object directly.
+```
+SIGTERM/SIGINT received
+  ↓
+server.close() — stop accepting new connections
+  ↓
+server.closeAllConnections() — close idle keep-alive (Node 18.2+)
+  ↓
+closePool() — end database connections
+  ↓
+process.exit(0) — clean exit
+```
 
 ---
 
 <a id="t-06"></a>
+
 ## [ ] T-06 — SSE Robustness in Chat Tab
+
 **Status:** `NOT_STARTED`
 
 ### Definition of Done
+
 - The chat tab's SSE consumer correctly handles chunk-boundary splits (multi-chunk events never produce a parse error).
 - The `useEffect` missing-dependency lint error is resolved.
 - Conversation loading reuses the generated React Query hooks instead of raw `fetch`.
 - The existing `useVoiceStream.ts` SSE parsing logic is extracted into a shared utility and reused.
 
 ### Out of Scope
+
 - Replacing SSE with WebSockets.
 - Implementing conversation title editing (tracked separately under UX improvements).
 - Voice/audio streaming integration with the chat tab.
 
 ### Rules to Follow
+
 - SSE parsing must buffer incomplete lines across chunks before attempting `JSON.parse`.
 - The shared SSE utility must be placed in `lib/` (not co-located in the mobile app) so it is reusable by both React Native and the mockup sandbox.
 - `useEffect` dependency arrays must be exhaustive; if `startNewConversation` changes identity on every render, it must be wrapped in `useCallback` first.
@@ -448,20 +480,25 @@ router.post("/:id/messages", async (req, res) => {
 ---
 
 <a id="t-07"></a>
+
 ## [ ] T-07 — Email Feature Completeness & UX Integrity
+
 **Status:** `NOT_STARTED`
 
 ### Definition of Done
+
 - Calling `sendEmail()` either performs a real send operation or is clearly disabled with a non-deceptive UI state (e.g., "Send" button is greyed out with a "Coming soon" tooltip).
 - The starred/unstarred email icon correctly shows a filled vs outline star based on `email.starred`.
 - No success Alert fires for a no-op operation.
 
 ### Out of Scope
+
 - Implementing a real email sending backend (SMTP/SendGrid integration).
 - Email sync from an external inbox provider.
 - End-to-end email threading or reply chains.
 
 ### Rules to Follow
+
 - Never show a success confirmation for an action that did not execute.
 - UI must reflect feature availability honestly — if a feature is not implemented, it should be visually disabled (opacity, disabled prop) not silently failing.
 - Icon library choice must provide both filled and outline variants for the same glyph. If `@expo/vector-icons` Feather lacks a filled star, use `FontAwesome` (`star` = filled, `star-o` = outline) or `MaterialIcons` (`star` / `star-border`).
@@ -493,19 +530,24 @@ router.post("/:id/messages", async (req, res) => {
 ---
 
 <a id="t-08"></a>
+
 ## [ ] T-08 — Metro Monorepo Configuration
+
 **Status:** `NOT_STARTED`
 
 ### Definition of Done
+
 - Metro correctly resolves all `@workspace/*` packages from the pnpm symlink structure.
 - `pnpm install` followed by `expo start` in a fresh checkout resolves all lib packages without errors.
 - The configuration is validated against the pnpm workspace structure (no hardcoded package names).
 
 ### Out of Scope
+
 - Switching Metro for a different bundler (e.g., Webpack, Rspack).
 - Adding web platform support beyond what Expo Router already provides.
 
 ### Rules to Follow
+
 - `watchFolders` must point to the workspace root so Metro can follow symlinks outside the app directory.
 - `resolver.nodeModulesPaths` must include the workspace root `node_modules` so hoisted dependencies are found.
 - The configuration must not enumerate individual workspace packages by name — it must work for any package matching the `@workspace/*` namespace.
@@ -540,21 +582,26 @@ router.post("/:id/messages", async (req, res) => {
 ---
 
 <a id="t-09"></a>
+
 ## [ ] T-09 — Android Build Configuration
+
 **Status:** `NOT_STARTED`
 
 ### Definition of Done
+
 - `app.json` contains a valid Android `package` identifier (reverse-domain format).
 - An `android.versionCode` is set.
 - Basic Android permissions required by the app features are declared (audio recording, network, camera if needed).
 - The Expo Router `origin` is loaded from an environment variable, not hardcoded.
 
 ### Out of Scope
+
 - Play Store submission or signing configuration (requires EAS).
 - iOS App Store configuration.
 - Push notification setup.
 
 ### Rules to Follow
+
 - The Android `package` must follow `com.<organization>.<appname>` convention and must be globally unique.
 - `versionCode` must be a monotonically increasing integer — start at `1`.
 - Do not add permissions that the app does not currently use — Android permission audits are sensitive for Play Store review.
@@ -587,20 +634,25 @@ router.post("/:id/messages", async (req, res) => {
 ---
 
 <a id="t-10"></a>
+
 ## [ ] T-10 — Static File Server Hardening
+
 **Status:** `NOT_STARTED`
 
 ### Definition of Done
+
 - `serve.js` serves static files using streaming (`fs.createReadStream()` + `pipe()`), not `readFileSync`.
 - Appropriate `Cache-Control` headers are set: immutable for hashed assets, `no-cache` for `index.html` and manifests.
 - Path traversal protection is preserved and tested.
 - `ETag` or `Last-Modified` headers are added for conditional GET support.
 
 ### Out of Scope
+
 - Replacing `serve.js` with a CDN or Nginx — this server is intentionally a minimal Node.js static server for the Replit environment.
 - Gzip/Brotli compression (desirable but separate task).
 
 ### Rules to Follow
+
 - `fs.readFileSync` must not be used in the request path — it blocks the event loop.
 - Path traversal check (`filePath.startsWith(STATIC_ROOT)`) must be preserved after switching to streaming.
 - `index.html` must always be served with `Cache-Control: no-cache, no-store` to prevent stale shell caching.
@@ -635,24 +687,29 @@ router.post("/:id/messages", async (req, res) => {
 ---
 
 <a id="t-11"></a>
+
 ## [ ] T-11 — Environment Variable Portability
+
 **Status:** `NOT_STARTED`
 
 ### Definition of Done
+
 - A `.env.example` file at the workspace root documents every required and optional env var.
 - No source file hardcodes `"https://replit.com/"`, `"replit.com"`, or `REPL_ID`-conditional logic that would silently misbehave outside Replit.
 - `mobile/scripts/build.js` has documented non-Replit usage instructions or environment-agnostic path.
 - `setBaseUrl` in the mobile root layout supports both `http://` and `https://` via a full URL env var.
 
 ### Out of Scope
+
 - CI/CD secret management or Vault integration.
 - Replacing Replit Secrets with a `.env` file on the Replit platform itself.
 
 ### Rules to Follow
+
 - `EXPO_PUBLIC_*` vars are inlined at build time — they cannot change at runtime. Document this limitation.
 - The `app.config.ts` migration (T-09) is a prerequisite for injecting `EXPO_PUBLIC_APP_ORIGIN` into `expo-router`.
 - Never commit `.env` files; `.env.example` must contain only placeholder values.
-- Env var names must be SCREAMING_SNAKE_CASE and namespaced by service (e.g., `API_`, `OPENAI_`, `EXPO_PUBLIC_`).
+- Env var names must be SCREAMING*SNAKE_CASE and namespaced by service (e.g., `API*`, `OPENAI*`, `EXPO_PUBLIC*`).
 
 ### Advanced Coding Patterns
 
@@ -685,20 +742,25 @@ router.post("/:id/messages", async (req, res) => {
 ---
 
 <a id="t-12"></a>
+
 ## [ ] T-12 — OpenAI Integration Consolidation
+
 **Status:** `NOT_STARTED`
 
 ### Definition of Done
+
 - `lib/integrations/openai_ai_integrations/` (the dead non-package directory) is removed or promoted to a proper workspace package.
 - The three separate `new OpenAI({ ... })` client instantiations are reduced to one shared factory.
 - The `ffmpeg` system dependency is documented and a startup check is added.
 - The `batchProcessWithSSE` utility is either wired to a real use case or marked with a clear `TODO` comment.
 
 ### Out of Scope
+
 - Switching from OpenAI to another AI provider.
 - Adding new OpenAI capabilities beyond what is currently scaffolded.
 
 ### Rules to Follow
+
 - A single `createOpenAIClient()` factory in one shared location must own reading `AI_INTEGRATIONS_OPENAI_API_KEY` and `AI_INTEGRATIONS_OPENAI_BASE_URL`.
 - `ffmpeg` checks must be done at module load time (not inside request handlers) so the error surfaces at server startup.
 - Duplicate source directories must not coexist — the `lib/integrations/openai_ai_integrations/` directory and `lib/integrations-openai-ai-server/` serve the same purpose.
@@ -735,19 +797,24 @@ router.post("/:id/messages", async (req, res) => {
 ---
 
 <a id="t-13"></a>
+
 ## [ ] T-13 — Audio Worklet Deployment & Documentation
+
 **Status:** `NOT_STARTED`
 
 ### Definition of Done
+
 - `audio-playback-worklet.js` is either automatically copied to the consumer app's `public/` directory via a build script, or the requirement is prominently documented in a top-level README section.
 - The worklet path is configurable (not hardcoded to `"/audio-playback-worklet.js"`).
 - A `README.md` or inline setup guide in `lib/integrations-openai-ai-react/` explains the deployment step.
 
 ### Out of Scope
+
 - Integrating the voice hooks into the mobile chat tab (a feature development task).
 - Bundling the worklet inline as a data URI (potentially viable but changes the security model).
 
 ### Rules to Follow
+
 - The worklet must be served from the same origin as the application (AudioWorklet security restriction).
 - The default `workletPath` parameter must remain configurable — do not hardcode the path inside the hooks.
 - The README must include a concrete example of the copy command for both Vite (`public/`) and Expo Web.
@@ -779,20 +846,25 @@ router.post("/:id/messages", async (req, res) => {
 ---
 
 <a id="t-14"></a>
+
 ## [ ] T-14 — Error Observability Pipeline
+
 **Status:** `NOT_STARTED`
 
 ### Definition of Done
+
 - The React `ErrorBoundary` `onError` prop is wired to a reporting function in the root layout.
 - Unhandled server errors are logged with full context (route, params, user agent) via Pino.
 - At minimum a DEV-mode console capture exists; a production error reporting hook is defined (even if the external service integration is a stub).
 - `ErrorFallback.tsx` includes a UI affordance to copy/share the error ID for support.
 
 ### Out of Scope
+
 - Selecting and fully integrating a paid error tracking service (Sentry, Datadog, Bugsnag) — infrastructure decision deferred.
 - Backend APM or distributed tracing.
 
 ### Rules to Follow
+
 - Error reports must never include PII or sensitive context (API keys, user tokens).
 - The `onError` handler must be synchronous — async handlers in React error boundaries can cause double-rendering issues.
 - Errors must be assigned a unique `errorId` (using `crypto.randomUUID()`) so users can report a specific incident.
@@ -827,20 +899,25 @@ router.post("/:id/messages", async (req, res) => {
 ---
 
 <a id="t-15"></a>
+
 ## [ ] T-15 — Database Schema Hardening
+
 **Status:** `NOT_STARTED`
 
 ### Definition of Done
+
 - The `messages.role` column is constrained to `"user" | "assistant" | "system"` in both the Drizzle schema and the database.
 - A `migrations/` directory exists with the initial migration generated from the current schema.
 - `drizzle-kit push` is replaced by `drizzle-kit migrate` for production environments.
 - `post-merge.sh` filter is corrected to match the workspace package name.
 
 ### Out of Scope
+
 - Switching from PostgreSQL to another database.
 - Adding new tables or schema changes beyond the role constraint.
 
 ### Rules to Follow
+
 - Schema changes must produce a migration file — `push` is destructive in production (it diffs and re-creates constraints without history).
 - The `role` check constraint must match the set of roles used in the codebase exactly — adding `"tool"` or `"function"` prematurely is out of scope.
 - The migration must be committed to source control alongside the schema change.
@@ -878,19 +955,24 @@ router.post("/:id/messages", async (req, res) => {
 ---
 
 <a id="t-16"></a>
+
 ## [ ] T-16 — Generated API Client Adoption
+
 **Status:** `NOT_STARTED`
 
 ### Definition of Done
+
 - The mobile chat tab uses `useGetOpenaiConversations`, `useGetOpenaiConversationMessages`, and the SSE mutation from `@workspace/api-client-react` instead of raw `expo/fetch`.
 - The `size` field in the image generation route is validated using `GenerateOpenaiImageBodySize` from `@workspace/api-zod`.
 - The SSE event payload format is documented in `openapi.yaml` (not an empty `{}` schema).
 
 ### Out of Scope
+
 - Regenerating the full Orval output (only modify the spec if a schema change is needed).
 - Adding new API endpoints.
 
 ### Rules to Follow
+
 - All API calls from the mobile app must go through the generated hooks to maintain a single source of truth.
 - The OpenAPI spec is the authoritative schema — any runtime behavior deviation from the spec must result in a spec update, not a workaround in the client.
 - Custom `expo/fetch` usage is only permitted for SSE streaming where the generated hook cannot produce a streaming consumer; in this case the hook must still be used for non-streaming operations on the same resource.
@@ -922,20 +1004,25 @@ router.post("/:id/messages", async (req, res) => {
 ---
 
 <a id="t-17"></a>
+
 ## [ ] T-17 — Mockup Sandbox Bootstrap
+
 **Status:** `NOT_STARTED`
 
 ### Definition of Done
+
 - At least one representative mockup component exists in `src/components/mockups/` that demonstrates the auto-discovery pipeline works end-to-end.
 - `version` in `package.json` is aligned with the workspace convention.
 - `BASE_PATH` and `PORT` requirements are documented in a comment at the top of `vite.config.ts` or in a `README.md`.
 - `@workspace/*` package aliases are added to `vite.config.ts` if the sandbox is intended to import from workspace libs.
 
 ### Out of Scope
+
 - Building a full component library — this task is only about verifying the scaffolding works.
 - Deploying the sandbox to a public URL.
 
 ### Rules to Follow
+
 - The demo component must use at least one `shadcn/ui` component from the `src/components/ui/` directory to validate the existing UI library setup.
 - The `package.json` version must match the workspace convention (`"0.0.0"`) unless semantic versioning is intentionally applied to this package.
 - `vite.config.ts` must not use `process.exit` or `throw` for missing optional configuration — use safe defaults where possible.
@@ -971,20 +1058,25 @@ router.post("/:id/messages", async (req, res) => {
 ---
 
 <a id="t-18"></a>
+
 ## [ ] T-18 — TypeScript Strictness Uplift
+
 **Status:** `NOT_STARTED`
 
 ### Definition of Done
+
 - `noUnusedLocals: true` is enabled in `tsconfig.base.json` and all resulting errors are resolved.
 - `strictFunctionTypes: true` is enabled and all resulting errors are resolved.
 - `strictPropertyInitialization: true` is confirmed enabled (it is part of `strict: true` if set, otherwise explicit).
 - No new `as` type assertions are introduced to paper over removed errors.
 
 ### Out of Scope
+
 - Enabling `noUncheckedIndexedAccess` (high-impact change affecting generated code — separate task if desired).
 - Enabling `exactOptionalPropertyTypes` (breaks generated Orval output — do not enable).
 
 ### Rules to Follow
+
 - Enable flags one at a time and fix errors before enabling the next flag.
 - Do not suppress errors with `// @ts-ignore` or `// @ts-expect-error` unless there is a documented reason.
 - Generated files (under `generated/`) must be excluded from the new strict rules via `tsconfig` `exclude` if they cannot be changed.
@@ -1017,10 +1109,13 @@ router.post("/:id/messages", async (req, res) => {
 ---
 
 <a id="t-19"></a>
+
 ## [ ] T-19 — Dead Code Elimination
+
 **Status:** `NOT_STARTED`
 
 ### Definition of Done
+
 - `babel-plugin-react-compiler` is removed from mobile `devDependencies` (superseded by `app.config.ts` experiments flag).
 - `scripts/src/hello.ts` is replaced with a real automation script or the `scripts/` package is removed.
 - `lib/integrations/openai_ai_integrations/` is resolved per T-12-3 (removed or promoted).
@@ -1029,9 +1124,11 @@ router.post("/:id/messages", async (req, res) => {
 - `generateId()` in `AppContext` is replaced with `crypto.randomUUID()`.
 
 ### Out of Scope
+
 - Refactoring working features to use different patterns simply because they are suboptimal (those are tracked in specific tasks above).
 
 ### Rules to Follow
+
 - Before removing any code, confirm it is not imported anywhere in the workspace (`grep_search` for the export name).
 - `babel-plugin-react-compiler` removal requires verifying that `app.json` / `app.config.ts` `experiments.reactCompiler: true` is the active mechanism.
 - `scripts/hello.ts` removal must be confirmed with the team — the `scripts/` package may be intentionally scaffolded for future automation.
@@ -1066,20 +1163,25 @@ router.post("/:id/messages", async (req, res) => {
 ---
 
 <a id="t-20"></a>
+
 ## [ ] T-20 — Post-Merge Automation & Git Hooks
+
 **Status:** `NOT_STARTED`
 
 ### Definition of Done
+
 - `scripts/post-merge.sh` is wired as a `git` post-merge hook in the repository.
 - The pnpm filter in `post-merge.sh` correctly targets the `@workspace/db` package.
 - The hook runs `drizzle-kit migrate` (not `push`) in non-development environments.
 - A `scripts/setup-hooks.sh` (or `package.json` `prepare` script) installs the hook automatically after `pnpm install`.
 
 ### Out of Scope
+
 - Pre-commit hooks (linting, type-checking) — a separate concern.
 - CI/CD pipeline migration hooks.
 
 ### Rules to Follow
+
 - Git hooks are not committed directly to `.git/hooks/` — that directory is not tracked. Use a `scripts/` directory with a setup script that symlinks or copies hooks.
 - The hook must be idempotent — running it twice must not cause errors.
 - The hook must exit with a non-zero code if `pnpm install` or `drizzle-kit migrate` fails, so the developer is alerted.
@@ -1117,4 +1219,4 @@ router.post("/:id/messages", async (req, res) => {
 
 ---
 
-*End of TODO.md — 20 parent tasks · 38 tracked issues · ~90 subtasks*
+_End of TODO.md — 20 parent tasks · 38 tracked issues · ~90 subtasks_

@@ -6,11 +6,19 @@ const { Pool } = pg;
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
+    "DATABASE_URL must be set. Did you forget to provision a database?"
   );
 }
 
 export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const db = drizzle(pool, { schema });
+
+/**
+ * Close the database connection pool gracefully.
+ * All in-flight queries will complete before connections are terminated.
+ */
+export async function closePool(): Promise<void> {
+  await pool.end();
+}
 
 export * from "./schema";
