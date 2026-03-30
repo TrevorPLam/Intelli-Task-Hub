@@ -17,6 +17,18 @@
     },
     {
       "path": "./lib/integrations-openai-ai-react"
+    },
+    {
+      "path": "./artifacts/api-server"
+    },
+    {
+      "path": "./artifacts/mobile"
+    },
+    {
+      "path": "./artifacts/mockup-sandbox"
+    },
+    {
+      "path": "./scripts"
     }
   ]
 }

@@ -5,19 +5,18 @@ export default defineConfig({
     globals: true,
     environment: "node",
     include: ["**/*.{test,spec}.{js,ts}"],
-    exclude: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.expo/**"],
-    setupFiles: ["./src/test/setup.ts"],
-    globalSetup: ["./src/test/global-setup.ts"],
-    teardownTimeout: 10000,
-    hookTimeout: 10000,
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/build/**",
+    ],
     coverage: {
       provider: "v8",
-      reporter: ["text", "json", "html", "lcov"],
+      reporter: ["text", "json", "html"],
       exclude: [
         "**/node_modules/**",
         "**/dist/**",
         "**/*.config.{js,ts}",
-        "**/generated/**",
         "**/test/**",
         "**/*.test.{js,ts}",
         "**/*.spec.{js,ts}",
@@ -31,10 +30,5 @@ export default defineConfig({
         },
       },
     },
-    typecheck: {
-      tsconfig: "./tsconfig.json",
-    },
-    testTimeout: 10000,
-    isolate: true,
   },
 });

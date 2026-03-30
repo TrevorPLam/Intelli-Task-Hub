@@ -3,5 +3,30 @@
 > node scripts/build.js
 
 Building static Expo Go deployment...
-ERROR: No deployment domain found. Set REPLIT_INTERNAL_APP_DOMAIN, REPLIT_DEV_DOMAIN, or EXPO_PUBLIC_DOMAIN
+Preparing build directories...
+Build: 1774905736516-14428
+Clearing Metro cache...
+Cache cleared
+Starting Metro...
+Setting EXPO_PUBLIC_DOMAIN=localhost:3000
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: spawn pnpm ENOENT
+    at ChildProcess._handle.onexit (node:internal/child_process:286:19)
+    at onErrorNT (node:internal/child_process:484:16)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+Emitted 'error' event on ChildProcess instance at:
+    at ChildProcess._handle.onexit (node:internal/child_process:292:12)
+    at onErrorNT (node:internal/child_process:484:16)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'spawn pnpm',
+  path: 'pnpm',
+  spawnargs: [ 'exec', 'expo', 'start', '--no-dev', '--minify', '--localhost' ]
+}
+
+Node.js v24.13.0
  ELIFECYCLE  Command failed with exit code 1.

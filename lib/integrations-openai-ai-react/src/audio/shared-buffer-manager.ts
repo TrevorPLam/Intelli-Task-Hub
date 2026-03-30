@@ -29,17 +29,24 @@ export class SharedBufferManager {
       available: [],
       inUse: new Set(),
       maxSize: this.maxPoolSize,
-      totalAllocated: 0
+      totalAllocated: 0,
     };
   }
 
   /**
    * Allocate a shared audio buffer for zero-copy transfer
    */
-  allocateSharedBuffer(length: number, sampleRate: number, channels: number = 2): SharedAudioBuffer {
+  allocateSharedBuffer(
+    length: number,
+    sampleRate: number,
+    channels: number = 2
+  ): SharedAudioBuffer {
     // Check if buffer is already available
     const availableBuffer = this.bufferPool.available.find(
-      buffer => buffer.length >= length && buffer.sampleRate === sampleRate && buffer.channels === channels
+      (buffer) =>
+        buffer.length >= length &&
+        buffer.sampleRate === sampleRate &&
+        buffer.channels === channels
     );
 
     if (availableBuffer) {
@@ -48,13 +55,15 @@ export class SharedBufferManager {
     }
 
     // Create new shared buffer
-    const sharedBuffer = new SharedArrayBuffer(length * Float32Array.BYTES_PER_ELEMENT);
+    const sharedBuffer = new SharedArrayBuffer(
+      length * Float32Array.BYTES_PER_ELEMENT
+    );
     const audioBuffer: SharedAudioBuffer = {
       buffer: sharedBuffer,
       length,
       sampleRate,
       channels,
-      timestamp: performance.now()
+      timestamp: performance.now(),
     };
 
     this.bufferPool.available.push(audioBuffer);
@@ -72,7 +81,7 @@ export class SharedBufferManager {
     }
 
     this.bufferPool.inUse.delete(audioBuffer);
-    
+
     // Clear buffer data for reuse
     if (audioBuffer.buffer) {
       audioBuffer.buffer.fill(0);
@@ -89,10 +98,12 @@ export class SharedBufferManager {
     memoryUsage: number;
   } {
     return {
-      totalBuffers: this.bufferPool.available.length + this.bufferPool.inUse.size,
+      totalBuffers:
+        this.bufferPool.available.length + this.bufferPool.inUse.size,
       availableBuffers: this.bufferPool.available.length,
       inUseBuffers: this.bufferPool.inUse.size,
-      memoryUsage: this.bufferPool.totalAllocated * Float32Array.BYTES_PER_ELEMENT
+      memoryUsage:
+        this.bufferPool.totalAllocated * Float32Array.BYTES_PER_ELEMENT,
     };
   }
 
@@ -100,12 +111,12 @@ export class SharedBufferManager {
    * Cleanup all buffers
    */
   dispose(): void {
-    this.bufferPool.available.forEach(buffer => {
+    this.bufferPool.available.forEach((buffer) => {
       if (buffer.buffer) {
         buffer.buffer.fill(0);
       }
     });
-    
+
     this.bufferPool.available = [];
     this.bufferPool.inUse.clear();
     this.bufferPool.totalAllocated = 0;
@@ -138,16 +149,16 @@ export class SharedAudioWorkletBridge {
       };
 
       workletNode.port.onmessageerror = (event) => {
-        console.error('Worklet message error:', event);
+        console.error("Worklet message error:", event);
       };
 
       // Send initialization message
       workletNode.port.postMessage({
-        type: 'init',
-        maxBufferSize: this.sharedBufferManager['maxBufferSize']
+        type: "init",
+        maxBufferSize: this.sharedBufferManager["maxBufferSize"],
       });
 
-      this.workletPorts.set('main', workletNode.port);
+      this.workletPorts.set("main", workletNode.port);
       resolve();
     });
   }
@@ -157,28 +168,28 @@ export class SharedAudioWorkletBridge {
    */
   private handleWorkletMessage(data: any, workletNode: AudioWorkletNode): void {
     switch (data.type) {
-      case 'ready':
-        console.log('Worklet ready for shared buffer communication');
+      case "ready":
+        console.log("Worklet ready for shared buffer communication");
         break;
 
-      case 'bufferRequest':
+      case "bufferRequest":
         this.handleBufferRequest(data, workletNode);
         break;
 
-      case 'bufferRelease':
+      case "bufferRelease":
         this.handleBufferRelease(data, workletNode);
         break;
 
-      case 'audioProcessed':
+      case "audioProcessed":
         this.handleAudioProcessed(data, workletNode);
         break;
 
-      case 'error':
-        console.error('Worklet error:', data.error);
+      case "error":
+        console.error("Worklet error:", data.error);
         break;
 
       default:
-        console.warn('Unknown worklet message:', data);
+        console.warn("Unknown worklet message:", data);
     }
   }
 
@@ -187,7 +198,7 @@ export class SharedAudioWorkletBridge {
    */
   private handleBufferRequest(data: any, workletNode: AudioWorkletNode): void {
     const { bufferId, length, sampleRate, channels } = data;
-    
+
     try {
       const audioBuffer = this.sharedBufferManager.allocateSharedBuffer(
         length,
@@ -198,9 +209,9 @@ export class SharedAudioWorkletBridge {
       // Transfer buffer ownership to worklet
       workletNode.port.postMessage(
         {
-          type: 'bufferAllocate',
+          type: "bufferAllocate",
           bufferId,
-          length: audioBuffer.length
+          length: audioBuffer.length,
         },
         [audioBuffer.buffer]
       );
@@ -208,13 +219,13 @@ export class SharedAudioWorkletBridge {
       // Store transfer info for potential cleanup
       this.pendingTransfers.set(bufferId, [audioBuffer.buffer]);
     } catch (error) {
-      console.error('Failed to allocate shared buffer:', error);
-      
+      console.error("Failed to allocate shared buffer:", error);
+
       // Send error response to worklet
       workletNode.port.postMessage({
-        type: 'bufferAllocateError',
+        type: "bufferAllocateError",
         bufferId,
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -224,10 +235,12 @@ export class SharedAudioWorkletBridge {
    */
   private handleBufferRelease(data: any, workletNode: AudioWorkletNode): void {
     const { bufferId } = data;
-    
+
     try {
       const audioBuffer = this.sharedBufferManager.bufferPool.available.find(
-        buffer => buffer.length > 0 && buffer.buffer === this.pendingTransfers.get(bufferId)?.[0]
+        (buffer) =>
+          buffer.length > 0 &&
+          buffer.buffer === this.pendingTransfers.get(bufferId)?.[0]
       );
 
       if (audioBuffer) {
@@ -239,11 +252,11 @@ export class SharedAudioWorkletBridge {
 
       // Notify worklet of successful release
       workletNode.port.postMessage({
-        type: 'bufferReleased',
-        bufferId
+        type: "bufferReleased",
+        bufferId,
       });
     } catch (error) {
-      console.error('Failed to release shared buffer:', error);
+      console.error("Failed to release shared buffer:", error);
     }
   }
 
@@ -252,7 +265,7 @@ export class SharedAudioWorkletBridge {
    */
   private handleAudioProcessed(data: any, workletNode: AudioWorkletNode): void {
     const { bufferId, processedData } = data;
-    
+
     try {
       // Create shared buffer for processed data
       const audioBuffer = this.sharedBufferManager.allocateSharedBuffer(
@@ -268,17 +281,20 @@ export class SharedAudioWorkletBridge {
       }
 
       // Transfer buffer back to main thread
-      const mainPort = this.workletPorts.get('main');
+      const mainPort = this.workletPorts.get("main");
       if (mainPort) {
-        mainPort.postMessage({
-          type: 'audioData',
-          bufferId,
-          audioData: processedData,
-          timestamp: performance.now()
-        }, [audioBuffer.buffer]);
+        mainPort.postMessage(
+          {
+            type: "audioData",
+            bufferId,
+            audioData: processedData,
+            timestamp: performance.now(),
+          },
+          [audioBuffer.buffer]
+        );
       }
     } catch (error) {
-      console.error('Failed to handle processed audio:', error);
+      console.error("Failed to handle processed audio:", error);
     }
   }
 
@@ -286,15 +302,22 @@ export class SharedAudioWorkletBridge {
    * Get performance metrics
    */
   getPerformanceMetrics(): {
+    bufferPoolUtilization: number;
+    memoryUsage: number;
+    activeConnections: number;
+    transferEfficiency: number;
+    averageLatency: number;
+  } {
     const stats = this.sharedBufferManager.getPoolStats();
     const activeConnections = this.workletPorts.size;
-    
+
     return {
-      bufferPoolUtilization: stats.totalBuffers / this.sharedBufferManager['maxPoolSize'],
+      bufferPoolUtilization:
+        stats.totalBuffers / this.sharedBufferManager["maxPoolSize"],
       memoryUsage: stats.memoryUsage,
       activeConnections,
       transferEfficiency: stats.availableBuffers / stats.totalBuffers,
-      averageLatency: 0 // Would need timing implementation
+      averageLatency: 0, // Would need timing implementation
     };
   }
 
@@ -303,8 +326,8 @@ export class SharedAudioWorkletBridge {
    */
   dispose(): void {
     this.sharedBufferManager.dispose();
-    this.workletPorts.forEach(port => {
-      port.postMessage({ type: 'shutdown' });
+    this.workletPorts.forEach((port) => {
+      port.postMessage({ type: "shutdown" });
     });
     this.workletPorts.clear();
     this.pendingTransfers.clear();
@@ -318,24 +341,28 @@ export class SharedAudioWorkletProcessor {
   private sharedBuffers: Map<number, SharedArrayBuffer> = new Map();
   private processorId: string;
 
-  constructor(processorId: string = 'shared-audio-processor') {
+  constructor(processorId: string = "shared-audio-processor") {
     this.processorId = processorId;
   }
 
   /**
    * Process audio with shared buffer support
    */
-  process(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>): boolean {
+  process(
+    inputs: Float32Array[][],
+    outputs: Float32Array[][],
+    parameters: Record<string, Float32Array>
+  ): boolean {
     const input = inputs[0];
     if (!input) return true;
 
     try {
       // Handle different message types
-      if (parameters.command === 'allocateBuffer') {
+      if (parameters.command === "allocateBuffer") {
         return this.handleBufferAllocation(parameters);
-      } else if (parameters.command === 'processAudio') {
+      } else if (parameters.command === "processAudio") {
         return this.handleAudioProcessing(parameters);
-      } else if (parameters.command === 'releaseBuffer') {
+      } else if (parameters.command === "releaseBuffer") {
         return this.handleBufferRelease(parameters);
       } else {
         // Default audio processing
@@ -348,7 +375,7 @@ export class SharedAudioWorkletProcessor {
 
       return true;
     } catch (error) {
-      console.error('SharedAudioWorkletProcessor error:', error);
+      console.error("SharedAudioWorkletProcessor error:", error);
       return false;
     }
   }
@@ -358,27 +385,29 @@ export class SharedAudioWorkletProcessor {
    */
   private handleBufferAllocation(parameters: any): boolean {
     const { length, sampleRate, channels } = parameters;
-    
+
     try {
       // Create shared buffer
-      const sharedBuffer = new SharedArrayBuffer(length * Float32Array.BYTES_PER_ELEMENT);
+      const sharedBuffer = new SharedArrayBuffer(
+        length * Float32Array.BYTES_PER_ELEMENT
+      );
       this.sharedBuffers.set(sharedBufferId, sharedBuffer);
 
       // Notify main thread of buffer allocation
       this.port.postMessage({
-        type: 'bufferAllocated',
+        type: "bufferAllocated",
         bufferId: sharedBufferId,
         length,
         sampleRate,
-        channels
+        channels,
       });
 
       return true;
     } catch (error) {
-      console.error('Buffer allocation failed:', error);
+      console.error("Buffer allocation failed:", error);
       this.port.postMessage({
-        type: 'error',
-        error: error.message
+        type: "error",
+        error: error.message,
       });
       return false;
     }
@@ -393,8 +422,8 @@ export class SharedAudioWorkletProcessor {
 
     if (!sharedBuffer) {
       this.port.postMessage({
-        type: 'error',
-        error: `Buffer ${bufferId} not found`
+        type: "error",
+        error: `Buffer ${bufferId} not found`,
       });
       return false;
     }
@@ -408,17 +437,17 @@ export class SharedAudioWorkletProcessor {
 
       // Notify main thread that processing is complete
       this.port.postMessage({
-        type: 'audioProcessed',
+        type: "audioProcessed",
         bufferId,
-        processedData: audioData
+        processedData: audioData,
       });
 
       return true;
     } catch (error) {
-      console.error('Audio processing failed:', error);
+      console.error("Audio processing failed:", error);
       this.port.postMessage({
-        type: 'error',
-        error: error.message
+        type: "error",
+        error: error.message,
       });
       return false;
     }
@@ -442,15 +471,15 @@ export class SharedAudioWorkletProcessor {
 
       // Notify main thread of buffer release
       this.port.postMessage({
-        type: 'bufferReleased',
-        bufferId
+        type: "bufferReleased",
+        bufferId,
       });
 
       return true;
     } else {
       this.port.postMessage({
-        type: 'error',
-        error: `Buffer ${bufferId} not found`
+        type: "error",
+        error: `Buffer ${bufferId} not found`,
       });
       return false;
     }
@@ -470,4 +499,8 @@ export class SharedAudioWorkletProcessor {
 }
 
 // Export shared buffer utilities
-export { SharedBufferManager, SharedAudioWorkletBridge, SharedAudioWorkletProcessor };
+export {
+  SharedBufferManager,
+  SharedAudioWorkletBridge,
+  SharedAudioWorkletProcessor,
+};

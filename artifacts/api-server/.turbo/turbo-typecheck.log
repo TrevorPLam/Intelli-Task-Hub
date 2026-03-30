@@ -2,3 +2,6 @@
 > @workspace/api-server@0.0.0 typecheck C:\Users\trevo\OneDrive\Desktop\Intelli-Task-Hub\artifacts\api-server
 > tsc -p tsconfig.json --noEmit
 
+src/routes/__tests__/health.test.ts(13,32): error TS6133: 'vi' is declared but its value is never read.
+src/routes/__tests__/index.test.ts(13,32): error TS6133: 'vi' is declared but its value is never read.
+ ELIFECYCLE  Command failed with exit code 2.

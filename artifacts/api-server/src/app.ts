@@ -5,6 +5,7 @@ import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { verifyApiKey } from "./middlewares/auth";
+import { responseFormatterMiddleware } from "./middlewares/response";
 
 // Parse CORS allowlist from environment
 function parseCorsOrigins(): string[] | boolean {
@@ -112,6 +113,7 @@ app.use(
 app.use(verifyApiKey);
 app.use(express.json({ limit: "64kb" }));
 app.use(express.urlencoded({ limit: "64kb", extended: false }));
+app.use(responseFormatterMiddleware());
 
 app.use("/api", router);
 

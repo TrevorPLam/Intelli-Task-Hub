@@ -11,12 +11,14 @@ export interface PCM16DecoderModule {
   free: (ptr: number) => void;
 }
 
-declare const WebAssembly: {
+interface WebAssemblyGlobal {
   instantiate: (
     bytes: ArrayBufferSource,
     importObject?: WebAssembly.Imports,
   ): Promise<WebAssembly.WebAssemblyInstantiatedSource>;
-};
+}
+
+declare const WebAssembly: WebAssemblyGlobal;
 
 export class WebAssemblyPCM16Decoder {
   private wasmModule: PCM16DecoderModule | null = null;

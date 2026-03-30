@@ -16,7 +16,9 @@ function findWorkspaceRoot(startDir) {
     }
     dir = path.dirname(dir);
   }
-  throw new Error("Could not find workspace root (no pnpm-workspace.yaml found)");
+  throw new Error(
+    "Could not find workspace root (no pnpm-workspace.yaml found)"
+  );
 }
 
 const workspaceRoot = findWorkspaceRoot(projectRoot);
@@ -55,6 +57,12 @@ function stripProtocol(domain) {
 }
 
 function getDeploymentDomain() {
+  // Check for Expo environment variables first
+  if (process.env.EXPO_PUBLIC_DOMAIN) {
+    return stripProtocol(process.env.EXPO_PUBLIC_DOMAIN);
+  }
+
+  // Fallback to Replit variables for compatibility
   if (process.env.REPLIT_INTERNAL_APP_DOMAIN) {
     return stripProtocol(process.env.REPLIT_INTERNAL_APP_DOMAIN);
   }
@@ -63,12 +71,17 @@ function getDeploymentDomain() {
     return stripProtocol(process.env.REPLIT_DEV_DOMAIN);
   }
 
-  if (process.env.EXPO_PUBLIC_DOMAIN) {
-    return stripProtocol(process.env.EXPO_PUBLIC_DOMAIN);
+  // If no domain is set, use localhost for development
+  if (
+    !process.env.EXPO_PUBLIC_DOMAIN &&
+    !process.env.REPLIT_INTERNAL_APP_DOMAIN &&
+    !process.env.REPLIT_DEV_DOMAIN
+  ) {
+    return "localhost:3000";
   }
 
   console.error(
-    "ERROR: No deployment domain found. Set REPLIT_INTERNAL_APP_DOMAIN, REPLIT_DEV_DOMAIN, or EXPO_PUBLIC_DOMAIN",
+    "ERROR: No deployment domain found. Set EXPO_PUBLIC_DOMAIN, REPLIT_INTERNAL_APP_DOMAIN, or REPLIT_DEV_DOMAIN"
   );
   process.exit(1);
 }
@@ -148,20 +161,13 @@ async function startMetro(expoPublicDomain, expoPublicReplId) {
 
   metroProcess = spawn(
     "pnpm",
-    [
-      "exec",
-      "expo",
-      "start",
-      "--no-dev",
-      "--minify",
-      "--localhost",
-    ],
+    ["exec", "expo", "start", "--no-dev", "--minify", "--localhost"],
     {
       stdio: ["ignore", "pipe", "pipe"],
       detached: false,
       cwd: projectRoot,
       env,
-    },
+    }
   );
 
   if (metroProcess.stdout) {
@@ -228,7 +234,12 @@ async function downloadFile(url, outputPath) {
 }
 
 async function downloadBundle(platform, timestamp) {
-  const entryPath = path.resolve(projectRoot, "node_modules", "expo-router", "entry");
+  const entryPath = path.resolve(
+    projectRoot,
+    "node_modules",
+    "expo-router",
+    "entry"
+  );
   const bundlePath = path.relative(workspaceRoot, entryPath);
   const url = new URL(`http://localhost:8081/${bundlePath}.bundle`);
   url.searchParams.set("platform", platform);
@@ -244,7 +255,7 @@ async function downloadBundle(platform, timestamp) {
     "static",
     "js",
     platform,
-    "bundle.js",
+    "bundle.js"
   );
 
   console.log(`Fetching ${platform} bundle...`);
@@ -273,7 +284,7 @@ async function downloadManifest(platform) {
   } catch (error) {
     if (error.name === "AbortError") {
       throw new Error(
-        `Manifest download timeout after 5m for platform: ${platform}`,
+        `Manifest download timeout after 5m for platform: ${platform}`
       );
     }
     throw error;
@@ -308,12 +319,28 @@ function extractAssets(timestamp) {
   const staticBuild = path.join(projectRoot, "static-build");
   const bundles = {
     ios: fs.readFileSync(
-      path.join(staticBuild, timestamp, "_expo", "static", "js", "ios", "bundle.js"),
-      "utf-8",
+      path.join(
+        staticBuild,
+        timestamp,
+        "_expo",
+        "static",
+        "js",
+        "ios",
+        "bundle.js"
+      ),
+      "utf-8"
     ),
     android: fs.readFileSync(
-      path.join(staticBuild, timestamp, "_expo", "static", "js", "android", "bundle.js"),
-      "utf-8",
+      path.join(
+        staticBuild,
+        timestamp,
+        "_expo",
+        "static",
+        "js",
+        "android",
+        "bundle.js"
+      ),
+      "utf-8"
     ),
   };
 
@@ -384,7 +411,7 @@ async function downloadAssets(assets, timestamp) {
       "_expo",
       "static",
       "js",
-      asset.relativePath,
+      asset.relativePath
     );
     fs.mkdirSync(outputDir, { recursive: true });
     const output = path.join(outputDir, asset.filename);
@@ -434,7 +461,7 @@ function updateBundleUrls(timestamp, baseUrl) {
       "static",
       "js",
       platform,
-      "bundle.js",
+      "bundle.js"
     );
     let bundle = fs.readFileSync(bundlePath, "utf-8");
 
@@ -446,13 +473,13 @@ function updateBundleUrls(timestamp, baseUrl) {
 
         if (!unstablePath) {
           throw new Error(
-            `Asset missing unstable_path in bundle: ${capturedPath}`,
+            `Asset missing unstable_path in bundle: ${capturedPath}`
           );
         }
 
         const decodedPath = decodeURIComponent(unstablePath);
         return `httpServerLocation:"${baseUrl}${basePath}/${timestamp}/_expo/static/js/${decodedPath}"`;
-      },
+      }
     );
 
     fs.writeFileSync(bundlePath, bundle);
@@ -472,7 +499,7 @@ function updateManifests(manifests, timestamp, baseUrl, assetsByHash) {
     manifest.launchAsset.url = `${baseUrl}${basePath}/${timestamp}/_expo/static/js/${platform}/bundle.js`;
     manifest.launchAsset.key = `bundle-${timestamp}`;
     manifest.createdAt = new Date(
-      Number(timestamp.split("-")[0]),
+      Number(timestamp.split("-")[0])
     ).toISOString();
     manifest.extra.expoClient.hostUri =
       baseUrl.replace("https://", "") + "/" + platform;
@@ -496,7 +523,7 @@ function updateManifests(manifests, timestamp, baseUrl, assetsByHash) {
 
     fs.writeFileSync(
       path.join(projectRoot, "static-build", platform, "manifest.json"),
-      JSON.stringify(manifest, null, 2),
+      JSON.stringify(manifest, null, 2)
     );
   };
 
@@ -527,8 +554,8 @@ async function main() {
       reject(
         new Error(
           `Overall download timeout after ${downloadTimeout / 1000} seconds. ` +
-            "Metro may be struggling to generate bundles. Check Metro logs above.",
-        ),
+            "Metro may be struggling to generate bundles. Check Metro logs above."
+        )
       );
     }, downloadTimeout);
   });

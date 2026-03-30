@@ -1,14 +1,50 @@
-node_modules
-dist
-build
-.expo
-.turbo
-coverage
+# Prettier ignore patterns for Intelli-Task-Hub
+# Follows 2026 best practices for monorepo formatting exclusion
+
+# Dependencies and generated files
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+.next/
+.expo/
+
+# Generated and compiled files
+*.config.js
+*.config.mjs
+generated/
+*.d.ts
+
+# Lock files and dependency caches
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Environment and artifact directories
+.env*
+.replit-artifact/
+.vscode/
+
+# Specific generated patterns
+*.min.js
+*.min.css
+*.bundle.js
+*.chunk.js
+
+# Documentation and markdown files (often have specific formatting)
+*.md
+CHANGELOG*
+
+# Test files (may have different formatting requirements)
+coverage/
+test-results/
+playwright-report/
+
+# Database migration files (may have specific formatting)
+migrations/
+*.sql
+
+# Log files
 *.log
-.env
-.env.local
-.env.*.local
-.DS_Store
-.idea
-.vscode/settings.json
-*.tsbuildinfo
+logs/

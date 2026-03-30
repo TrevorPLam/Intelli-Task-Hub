@@ -31,15 +31,60 @@ paths:
       operationId: listOpenaiConversations
       tags: [openai]
       summary: List all conversations
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Maximum number of items to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of items to skip
       responses:
         "200":
           description: List of conversations
+          headers:
+            X-Total-Count:
+              description: Total number of conversations
+              schema:
+                type: integer
+            X-Limit:
+              description: Requested limit
+              schema:
+                type: integer
+            X-Offset:
+              description: Requested offset
+              schema:
+                type: integer
+            Link:
+              description: Pagination links (RFC 8288)
+              schema:
+                type: string
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/OpenaiConversation"
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/OpenaiConversation"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/OpenaiConversation"
+                      meta:
+                        type: object
+                        properties:
+                          pagination:
+                            $ref: "#/components/schemas/PaginationMeta"
     post:
       operationId: createOpenaiConversation
       tags: [openai]
@@ -78,7 +123,7 @@ paths:
         "404":
           description: Not found
           content:
-            application/json:
+            application/problem+json:
               schema:
                 $ref: "#/components/schemas/OpenaiError"
     delete:
@@ -97,7 +142,7 @@ paths:
         "404":
           description: Not found
           content:
-            application/json:
+            application/problem+json:
               schema:
                 $ref: "#/components/schemas/OpenaiError"
   /openai/conversations/{id}/messages:
@@ -111,15 +156,59 @@ paths:
           required: true
           schema:
             type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: Maximum number of items to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of items to skip
       responses:
         "200":
           description: List of messages
+          headers:
+            X-Total-Count:
+              description: Total number of messages
+              schema:
+                type: integer
+            X-Limit:
+              description: Requested limit
+              schema:
+                type: integer
+            X-Offset:
+              description: Requested offset
+              schema:
+                type: integer
+            Link:
+              description: Pagination links (RFC 8288)
+              schema:
+                type: string
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/OpenaiMessage"
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/OpenaiMessage"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/OpenaiMessage"
+                      meta:
+                        type: object
+                        properties:
+                          pagination:
+                            $ref: "#/components/schemas/PaginationMeta"
     post:
       operationId: sendOpenaiMessage
       tags: [openai]
@@ -190,6 +279,30 @@ components:
           type: string
       required:
         - status
+    PaginationMeta:
+      type: object
+      properties:
+        limit:
+          type: integer
+          description: Maximum number of items returned
+        offset:
+          type: integer
+          description: Number of items skipped
+        total:
+          type: integer
+          description: Total number of items available
+        hasNext:
+          type: boolean
+          description: Whether more items are available
+        hasPrev:
+          type: boolean
+          description: Whether previous items are available
+      required:
+        - limit
+        - offset
+        - total
+        - hasNext
+        - hasPrev
     OpenaiConversation:
       type: object
       properties:
@@ -277,7 +390,39 @@ components:
     OpenaiError:
       type: object
       properties:
-        error:
+        type:
           type: string
+          format: uri
+          description: Problem type URI
+        title:
+          type: string
+          description: Human-readable problem title
+        detail:
+          type: string
+          description: Detailed problem description
+        instance:
+          type: string
+          format: uri
+          description: Specific problem occurrence
+        status:
+          type: integer
+          description: HTTP status code
+        errorId:
+          type: string
+          format: uuid
+          description: Correlation ID for error tracking
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              pointer:
+                type: string
+                description: JSON Pointer to error location
+              detail:
+                type: string
+                description: Specific error message
       required:
-        - error
+        - title
+        - detail
+        - status
