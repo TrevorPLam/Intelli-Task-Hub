@@ -10,7 +10,7 @@ const rawPort = process.env.PORT;
 
 if (!rawPort) {
   throw new Error(
-    "PORT environment variable is required but was not provided.",
+    "PORT environment variable is required but was not provided."
   );
 }
 
@@ -24,7 +24,7 @@ const basePath = process.env.BASE_PATH;
 
 if (!basePath) {
   throw new Error(
-    "BASE_PATH environment variable is required but was not provided.",
+    "BASE_PATH environment variable is required but was not provided."
   );
 }
 
@@ -42,12 +42,12 @@ export default defineConfig({
       filename: "dist/stats.html",
     }),
     ...(process.env.NODE_ENV !== "production" &&
-    process.env.REPL_ID !== undefined
+    process.env.ENABLE_REPLIT_PLUGINS === "true"
       ? [
           await import("@replit/vite-plugin-cartographer").then((m) =>
             m.cartographer({
               root: path.resolve(import.meta.dirname, ".."),
-            }),
+            })
           ),
         ]
       : []),

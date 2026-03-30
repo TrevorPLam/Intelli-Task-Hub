@@ -1,6 +1,14 @@
 import pLimit from "p-limit";
 import pRetry from "p-retry";
 
+// Create AbortError class for p-retry compatibility
+class AbortError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AbortError";
+  }
+}
+
 /**
  * Batch Processing Utilities
  *
@@ -74,8 +82,8 @@ export async function batchProcess<T, R>(
             if (isRateLimitError(error)) {
               throw error;
             }
-            throw new pRetry.AbortError(
-              error instanceof Error ? error : new Error(String(error))
+            throw new AbortError(
+              error instanceof Error ? error.message : String(error)
             );
           }
         },
@@ -93,6 +101,7 @@ export async function batchProcessWithSSE<T, R>(
   sendEvent: (event: { type: string; [key: string]: unknown }) => void,
   options: Omit<BatchOptions, "concurrency" | "onProgress"> = {}
 ): Promise<R[]> {
+  // TODO: Wire to POST /api/openai/batch when batch processing route is implemented
   const { retries = 5, minTimeout = 1000, maxTimeout = 15000 } = options;
 
   sendEvent({ type: "started", total: items.length });
@@ -105,22 +114,19 @@ export async function batchProcessWithSSE<T, R>(
     sendEvent({ type: "processing", index, item });
 
     try {
-      const result = await pRetry(
-        () => processor(item, index),
-        {
-          retries,
-          minTimeout,
-          maxTimeout,
-          factor: 2,
-          onFailedAttempt: (error) => {
-            if (!isRateLimitError(error)) {
-              throw new pRetry.AbortError(
-                error instanceof Error ? error : new Error(String(error))
-              );
-            }
-          },
-        }
-      );
+      const result = await pRetry(() => processor(item, index), {
+        retries,
+        minTimeout,
+        maxTimeout,
+        factor: 2,
+        onFailedAttempt: (error) => {
+          if (!isRateLimitError(error)) {
+            throw new AbortError(
+              error instanceof Error ? error.message : String(error)
+            );
+          }
+        },
+      });
       results.push(result);
       sendEvent({ type: "progress", index, result });
     } catch (error) {

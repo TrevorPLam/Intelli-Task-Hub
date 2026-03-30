@@ -1,27 +1,32 @@
-import OpenAI, { toFile } from "openai";
+import { toFile } from "openai";
 import { Buffer } from "node:buffer";
 import { spawn } from "child_process";
+import { spawnSync } from "node:child_process";
 import { writeFile, unlink, readFile } from "fs/promises";
 import { randomUUID } from "crypto";
 import { tmpdir } from "os";
 import { join } from "path";
+import { getOpenAIClient } from "../client";
 
-if (!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL) {
+/**
+ * FFmpeg startup existence check
+ *
+ * Validates that ffmpeg is available at module load time.
+ * This prevents runtime errors when audio processing functions are called.
+ */
+const ffmpegCheck = spawnSync("ffmpeg", ["-version"], { stdio: "ignore" });
+if (ffmpegCheck.status !== 0) {
   throw new Error(
-    "AI_INTEGRATIONS_OPENAI_BASE_URL must be set. Did you forget to provision the OpenAI AI integration?",
+    "ffmpeg is required but not found on this system. Please install ffmpeg before using audio features.\n" +
+      "Installation instructions:\n" +
+      "- macOS: brew install ffmpeg\n" +
+      "- Ubuntu/Debian: sudo apt-get install ffmpeg\n" +
+      "- Windows: Download from https://ffmpeg.org/download.html\n" +
+      "- Docker: RUN apt-get update && apt-get install -y ffmpeg"
   );
 }
 
-if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
-  throw new Error(
-    "AI_INTEGRATIONS_OPENAI_API_KEY must be set. Did you forget to provision the OpenAI AI integration?",
-  );
-}
-
-export const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+const openai = getOpenAIClient();
 
 export type AudioFormat = "wav" | "mp3" | "webm" | "mp4" | "ogg" | "unknown";
 
@@ -33,26 +38,47 @@ export function detectAudioFormat(buffer: Buffer): AudioFormat {
   if (buffer.length < 12) return "unknown";
 
   // WAV: RIFF....WAVE
-  if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) {
+  if (
+    buffer[0] === 0x52 &&
+    buffer[1] === 0x49 &&
+    buffer[2] === 0x46 &&
+    buffer[3] === 0x46
+  ) {
     return "wav";
   }
   // WebM: EBML header
-  if (buffer[0] === 0x1a && buffer[1] === 0x45 && buffer[2] === 0xdf && buffer[3] === 0xa3) {
+  if (
+    buffer[0] === 0x1a &&
+    buffer[1] === 0x45 &&
+    buffer[2] === 0xdf &&
+    buffer[3] === 0xa3
+  ) {
     return "webm";
   }
   // MP3: ID3 tag or frame sync
   if (
-    (buffer[0] === 0xff && (buffer[1] === 0xfb || buffer[1] === 0xfa || buffer[1] === 0xf3)) ||
+    (buffer[0] === 0xff &&
+      (buffer[1] === 0xfb || buffer[1] === 0xfa || buffer[1] === 0xf3)) ||
     (buffer[0] === 0x49 && buffer[1] === 0x44 && buffer[2] === 0x33)
   ) {
     return "mp3";
   }
   // MP4/M4A/MOV: ....ftyp (Safari/iOS records in these containers)
-  if (buffer[4] === 0x66 && buffer[5] === 0x74 && buffer[6] === 0x79 && buffer[7] === 0x70) {
+  if (
+    buffer[4] === 0x66 &&
+    buffer[5] === 0x74 &&
+    buffer[6] === 0x79 &&
+    buffer[7] === 0x70
+  ) {
     return "mp4";
   }
   // OGG: OggS
-  if (buffer[0] === 0x4f && buffer[1] === 0x67 && buffer[2] === 0x67 && buffer[3] === 0x53) {
+  if (
+    buffer[0] === 0x4f &&
+    buffer[1] === 0x67 &&
+    buffer[2] === 0x67 &&
+    buffer[3] === 0x53
+  ) {
     return "ogg";
   }
   return "unknown";
@@ -70,12 +96,17 @@ export async function convertToWav(audioBuffer: Buffer): Promise<Buffer> {
 
     await new Promise<void>((resolve, reject) => {
       const ffmpeg = spawn("ffmpeg", [
-        "-i", inputPath,
+        "-i",
+        inputPath,
         "-vn",
-        "-f", "wav",
-        "-ar", "16000",
-        "-ac", "1",
-        "-acodec", "pcm_s16le",
+        "-f",
+        "wav",
+        "-ar",
+        "16000",
+        "-ac",
+        "1",
+        "-acodec",
+        "pcm_s16le",
         "-y",
         outputPath,
       ]);
@@ -120,12 +151,17 @@ export async function voiceChat(
     model: "gpt-audio",
     modalities: ["text", "audio"],
     audio: { voice, format: outputFormat },
-    messages: [{
-      role: "user",
-      content: [
-        { type: "input_audio", input_audio: { data: audioBase64, format: inputFormat } },
-      ],
-    }],
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_audio",
+            input_audio: { data: audioBase64, format: inputFormat },
+          },
+        ],
+      },
+    ],
   });
   const message = response.choices[0]?.message as any;
   const transcript = message?.audio?.transcript || message?.content || "";
@@ -147,12 +183,17 @@ export async function voiceChatStream(
     model: "gpt-audio",
     modalities: ["text", "audio"],
     audio: { voice, format: "pcm16" },
-    messages: [{
-      role: "user",
-      content: [
-        { type: "input_audio", input_audio: { data: audioBase64, format: inputFormat } },
-      ],
-    }],
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_audio",
+            input_audio: { data: audioBase64, format: inputFormat },
+          },
+        ],
+      },
+    ],
     stream: true,
   });
 
@@ -181,7 +222,10 @@ export async function textToSpeech(
     modalities: ["text", "audio"],
     audio: { voice, format },
     messages: [
-      { role: "system", content: "You are an assistant that performs text-to-speech." },
+      {
+        role: "system",
+        content: "You are an assistant that performs text-to-speech.",
+      },
       { role: "user", content: `Repeat the following text verbatim: ${text}` },
     ],
   });
@@ -199,7 +243,10 @@ export async function textToSpeechStream(
     modalities: ["text", "audio"],
     audio: { voice, format: "pcm16" },
     messages: [
-      { role: "system", content: "You are an assistant that performs text-to-speech." },
+      {
+        role: "system",
+        content: "You are an assistant that performs text-to-speech.",
+      },
       { role: "user", content: `Repeat the following text verbatim: ${text}` },
     ],
     stream: true,

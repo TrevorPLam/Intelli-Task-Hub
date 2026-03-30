@@ -1,0 +1,7 @@
+
+> @workspace/mobile@0.0.0 build C:\Users\trevo\OneDrive\Desktop\Intelli-Task-Hub\artifacts\mobile
+> node scripts/build.js
+
+Building static Expo Go deployment...
+ERROR: No deployment domain found. Set REPLIT_INTERNAL_APP_DOMAIN, REPLIT_DEV_DOMAIN, or EXPO_PUBLIC_DOMAIN
+ ELIFECYCLE  Command failed with exit code 1.

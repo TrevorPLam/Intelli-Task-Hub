@@ -550,6 +550,9 @@ importers:
 
   lib/integrations-openai-ai-server:
     dependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.3.5
       openai:
         specifier: ^6.33.0
         version: 6.33.0(ws@8.20.0)(zod@4.3.6)
