@@ -30,6 +30,15 @@ export async function createAudioPlaybackContext(
   if (!workletPath) {
     throw new Error("workletPath is required for audio playback");
   }
+
+  // Warn in development if using default path
+  if (workletPath === "/audio-playback-worklet.js") {
+    console.warn(
+      "Using default workletPath '/audio-playback-worklet.js'. " +
+        "Ensure this file is copied to your public directory and accessible from your domain root."
+    );
+  }
+
   const ctx = new AudioContext({ sampleRate });
   await ctx.audioWorklet.addModule(workletPath);
   const worklet = new AudioWorkletNode(ctx, "audio-playback-processor");

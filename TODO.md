@@ -918,54 +918,22 @@ const openai = getOpenAIClient();
 
 <a id="t-13"></a>
 
-## [ ] T-13 — Audio Worklet Deployment & Documentation
+## [x] T-13 — Audio Worklet Deployment & Documentation
 
-**Status:** `NOT_STARTED`
+**Status:** `DONE`
 
-### Definition of Done
+### Implementation Summary
 
-- `audio-playback-worklet.js` is either automatically copied to the consumer app's `public/` directory via a build script, or the requirement is prominently documented in a top-level README section.
-- The worklet path is configurable (not hardcoded to `"/audio-playback-worklet.js"`).
-- A `README.md` or inline setup guide in `lib/integrations-openai-ai-react/` explains the deployment step.
-
-### Out of Scope
-
-- Integrating the voice hooks into the mobile chat tab (a feature development task).
-- Bundling the worklet inline as a data URI (potentially viable but changes the security model).
-
-### Rules to Follow
-
-- The worklet must be served from the same origin as the application (AudioWorklet security restriction).
-- The default `workletPath` parameter must remain configurable — do not hardcode the path inside the hooks.
-- The README must include a concrete example of the copy command for both Vite (`public/`) and Expo Web.
-
-### Advanced Coding Patterns
-
-- [ ] **T-13-P1 — Research: AudioWorklet deployment patterns (Feb 2026)**
-  - Review approaches for bundling AudioWorklets: Worklet as separate file in `public/`, Worklet inlined as `blob:` URL, Worklet loaded via `import.meta.url` with Vite's `?url` suffix.
-  - Study Vite 5 `?url` import for worklets — `import workletUrl from './audio-playback-worklet.js?url'` makes Vite copy it to `dist/` and returns the hash-fingerprinted URL.
-  - Review Web Audio API `AudioWorklet.addModule()` same-origin requirement — cannot load from `blob:` URL in all browsers.
-
-- [ ] **T-13-P2 — Research: Audio worklet antipatterns**
-  - Antipattern: Hardcoding `"/audio-playback-worklet.js"` as the default path — breaks in apps with a base URL that is not `/`.
-  - Antipattern: Forgetting that `AudioContext` must be resumed after a user gesture — `ctx.state === 'suspended'` until user interaction; starting playback without checking state produces silent output.
-  - Antipattern: Placing the worklet file in `src/` without a build step to copy it — Vite/Metro will not include it in the output bundle automatically.
-
-- [ ] **T-13-1 — Add Vite `?url` import to the audio index**
-  - File: `lib/integrations-openai-ai-react/src/audio/index.ts`
-  - Export `audioPlaybackWorkletUrl` using `import workletUrl from './audio-playback-worklet.js?url'` for Vite consumers.
-
-- [ ] **T-13-2 — Create `README.md` for `integrations-openai-ai-react`**
-  - File: `lib/integrations-openai-ai-react/README.md` (new file)
-  - Document: worklet file copy step, required `public/` placement, `createAudioPlaybackContext` usage, Expo Web compatibility notes.
-
-- [ ] **T-13-3 — Make `workletPath` required (no default) or validate default**
-  - File: `lib/integrations-openai-ai-react/src/audio/audio-utils.ts`
-  - Remove the hardcoded default `"/audio-playback-worklet.js"` from `createAudioPlaybackContext`; require callers to pass the path explicitly, or add a `console.warn` in DEV when the default is used.
-
----
-
-<a id="t-14"></a>
+- **T-13-P1** — Research completed on AudioWorklet deployment patterns including Vite `?url` imports, `import.meta.url` usage, and same-origin security requirements
+- **T-13-P2** — Research completed on AudioWorklet antipatterns including hardcoded paths, missing user gesture checks, and build step requirements
+- **T-13-1** — Added `audioPlaybackWorkletUrl` export using `new URL('./audio-playback-worklet.js', import.meta.url).href` for Vite consumers with fallback for non-Vite environments
+- **T-13-2** — Created comprehensive `README.md` with:
+  - Multiple deployment options (Manual, Vite automatic, Expo Web)
+  - Step-by-step setup instructions with copy commands
+  - Complete API reference for all hooks and utilities
+  - Security considerations and browser compatibility
+  - Troubleshooting guide for common issues
+- **T-13-3** — Added development warning in `createAudioPlaybackContext()` when default worklet path is used, encouraging proper deployment
 
 ## [ ] T-14 — Error Observability Pipeline
 
