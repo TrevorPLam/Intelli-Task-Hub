@@ -16,4 +16,3 @@ src/index.ts(3,54): error TS6307: File 'C:/Users/trevo/OneDrive/Desktop/Intelli-
     Imported via "./useAudioPlayback" from file 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/integrations-openai-ai-react/src/audio/useVoiceStream.ts'
 src/index.ts(4,32): error TS6307: File 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/integrations-openai-ai-react/src/audio/useVoiceStream.ts' is not listed within the file list of project 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/lib/integrations-openai-ai-react/tsconfig.json'. Projects must list all files or use an 'include' pattern.
  ELIFECYCLE  Command failed with exit code 1.
- WARN   Local package.json exists, but node_modules missing, did you mean to install?

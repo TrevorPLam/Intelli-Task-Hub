@@ -1494,58 +1494,39 @@ export const modules: ModuleMap = {
 
 <a id="t-20"></a>
 
-## [ ] T-20 — Post-Merge Automation & Git Hooks
+## [x] T-20 — Post-Merge Automation & Git Hooks
 
-**Status:** `NOT_STARTED`
+**Status:** `DONE`
 
 ### Definition of Done
 
-- `scripts/post-merge.sh` is wired as a `git` post-merge hook in the repository.
-- The pnpm filter in `post-merge.sh` correctly targets the `@workspace/db` package.
-- The hook runs `drizzle-kit migrate` (not `push`) in non-development environments.
-- A `scripts/setup-hooks.sh` (or `package.json` `prepare` script) installs the hook automatically after `pnpm install`.
+- [x] `scripts/post-merge.sh` is wired as a `git` post-merge hook in the repository.
+- [x] The pnpm filter in `post-merge.sh` correctly targets the `@workspace/db` package.
+- [x] The hook runs `drizzle-kit migrate` (not `push`) in non-development environments.
+- [x] A `scripts/setup-hooks.sh` (or `package.json` `prepare` script) installs the hook automatically after `pnpm install`.
 
-### Out of Scope
+### Implementation Summary
 
-- Pre-commit hooks (linting, type-checking) — a separate concern.
-- CI/CD pipeline migration hooks.
+- **T-20-P1** — Research completed on Git hooks patterns: `simple-git-hooks` confirmed as optimal choice (lighter than Husky, proper pnpm support)
+- **T-20-P2** — Research completed on Git hooks antipatterns to avoid
+- **T-20-1** — `simple-git-hooks` already configured in workspace root `package.json` ✅
+- **T-20-2** — Fixed `post-merge.sh` script:
+  - Changed `--frozen-lockfile` to `--no-frozen-lockfile` (allows package additions during merges)
+  - Changed `pnpm --filter @workspace/db run migrate` to `pnpm --filter @workspace/db run db:migrate`
+- **T-20-3** — `prepare` script already set to `simple-git-hooks` in workspace root `package.json` ✅
+- **T-20-4** — Added `db:migrate` script to `lib/db/package.json` (mirrors existing `migrate` script)
 
-### Rules to Follow
+### Files Modified
 
-- Git hooks are not committed directly to `.git/hooks/` — that directory is not tracked. Use a `scripts/` directory with a setup script that symlinks or copies hooks.
-- The hook must be idempotent — running it twice must not cause errors.
-- The hook must exit with a non-zero code if `pnpm install` or `drizzle-kit migrate` fails, so the developer is alerted.
-- Do not use `--frozen-lockfile` in the hook if developers are expected to add packages during merges; use `--no-frozen-lockfile` with awareness.
+1. `scripts/post-merge.sh` — Fixed pnpm flags and command name
+2. `lib/db/package.json` — Added `db:migrate` script
 
-### Advanced Coding Patterns
+### Quality Assurance
 
-- [ ] **T-20-P1 — Research: Git hooks in pnpm monorepos (Feb 2026)**
-  - Review `simple-git-hooks` and `husky` v9 for hook management in monorepos — both support a `prepare` script that runs on `pnpm install`.
-  - Study `lefthook` as a cross-platform alternative with pnpm workspace support.
-  - Review pnpm `package.json` `"prepare"` lifecycle script — runs automatically after `pnpm install` making it ideal for hook setup.
-  - Note: `simple-git-hooks` is lighter than Husky and does not require shell script wrappers.
-
-- [ ] **T-20-P2 — Git hooks antipatterns**
-  - Antipattern: Committing hooks to `.git/hooks/` directly — not version-controlled, lost on fresh clone.
-  - Antipattern: Using `--force` in `pnpm install` inside a hook — can corrupt the lockfile if two developers merge simultaneously.
-  - Antipattern: A `post-merge` hook that runs `drizzle-kit push` in production — destructive, as noted in T-15.
-  - Antipattern: A hook that calls `exit 1` on a warning instead of only on actual errors — blocks legitimate merges.
-
-- [ ] **T-20-1 — Add `simple-git-hooks` to workspace root**
-  - File: `package.json` (workspace root)
-  - Add `simple-git-hooks` to devDependencies; configure `"post-merge": "sh scripts/post-merge.sh"` in the `simple-git-hooks` config block.
-
-- [ ] **T-20-2 — Fix `post-merge.sh` pnpm filter and command**
-  - File: `scripts/post-merge.sh`
-  - Change `pnpm --filter db push` → `pnpm --filter @workspace/db run db:migrate`.
-
-- [ ] **T-20-3 — Add `"prepare"` script to workspace root `package.json`**
-  - File: `package.json` (workspace root)
-  - Add `"prepare": "simple-git-hooks"` to `scripts` — installs hooks automatically on `pnpm install`.
-
-- [ ] **T-20-4 — Add `db:migrate` script to db package**
-  - File: `lib/db/package.json`
-  - Add `"db:migrate": "drizzle-kit migrate"` to `scripts`.
+- ✅ Hook installation verified via `pnpm prepare`
+- ✅ Git hooks properly installed in `.git/hooks/` (post-merge and pre-commit)
+- ✅ `db:migrate` command tested and working correctly
+- ✅ Script follows all rules: idempotent, exits non-zero on failure, uses correct pnpm filter
 
 ---
 
