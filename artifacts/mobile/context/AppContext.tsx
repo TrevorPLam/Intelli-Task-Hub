@@ -85,8 +85,14 @@ const generateId = () =>
   Date.now().toString() + Math.random().toString(36).substr(2, 9);
 
 const PROJECT_COLORS = [
-  "#6C63FF", "#F59E0B", "#10B981", "#EF4444",
-  "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6",
+  "#6C63FF",
+  "#F59E0B",
+  "#10B981",
+  "#EF4444",
+  "#3B82F6",
+  "#8B5CF6",
+  "#EC4899",
+  "#14B8A6",
 ];
 
 const SEED_PROJECTS: Project[] = [
@@ -228,7 +234,8 @@ const SEED_EMAILS: Email[] = [
     from: "Sarah Chen",
     fromEmail: "sarah.chen@studio.com",
     subject: "Re: Design System Proposal",
-    preview: "Thanks for sending the proposal over! I've had a chance to review...",
+    preview:
+      "Thanks for sending the proposal over! I've had a chance to review...",
     body: "Thanks for sending the proposal over! I've had a chance to review it with the team and we're all very excited about the direction.\n\nA few thoughts:\n1. The color palette looks great\n2. We'd like to explore more options for the typography\n3. Can we schedule a call to discuss?\n\nLooking forward to your thoughts!\n\nSarah",
     date: new Date(Date.now() - 7200000).toISOString(),
     read: true,
@@ -240,7 +247,8 @@ const SEED_EMAILS: Email[] = [
     from: "Stripe",
     fromEmail: "receipts@stripe.com",
     subject: "Payment received: $149.00",
-    preview: "Your payment of $149.00 has been received for Professional Plan...",
+    preview:
+      "Your payment of $149.00 has been received for Professional Plan...",
     body: "Your payment of $149.00 has been received.\n\nPlan: Professional\nAmount: $149.00\nDate: Today\nNext billing: 30 days\n\nThank you for your business!",
     date: new Date(Date.now() - 86400000).toISOString(),
     read: true,
@@ -252,7 +260,8 @@ const SEED_EMAILS: Email[] = [
     from: "Mark Williams",
     fromEmail: "mark.w@partners.com",
     subject: "Partnership Opportunity",
-    preview: "I hope this finds you well. I wanted to reach out about an exciting...",
+    preview:
+      "I hope this finds you well. I wanted to reach out about an exciting...",
     body: "I hope this finds you well. I wanted to reach out about an exciting partnership opportunity that could be mutually beneficial.\n\nOur company specializes in AI-driven solutions and we believe there's a strong synergy with your team's work.\n\nWould you be open to a brief call this week?\n\nBest regards,\nMark",
     date: new Date(Date.now() - 2 * 86400000).toISOString(),
     read: false,
@@ -324,14 +333,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const updateProject = useCallback(
-    (id: string, updates: Partial<Project>) => {
-      setProjects((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
-      );
-    },
-    []
-  );
+  const updateProject = useCallback((id: string, updates: Partial<Project>) => {
+    setProjects((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
+    );
+  }, []);
 
   const deleteProject = useCallback((id: string) => {
     setProjects((prev) => prev.filter((p) => p.id !== id));
@@ -392,20 +398,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const sendEmail = useCallback(
-    (to: string, subject: string, body: string) => {
-      const sentEmail: Email = {
-        id: generateId(),
-        from: "Me",
-        fromEmail: "me@myemail.com",
-        subject,
-        preview: body.slice(0, 80),
-        body,
-        date: new Date().toISOString(),
-        read: true,
-        starred: false,
-        label: "Sent",
-      };
-      setEmails((prev) => [sentEmail, ...prev]);
+    (_to: string, _subject: string, _body: string) => {
+      // TODO: Email sending not implemented - requires SMTP/SendGrid backend integration
+      if (__DEV__) {
+        console.warn(
+          "sendEmail: not implemented - no email backend configured"
+        );
+      }
+      // No-op: does not actually send email or add to sent folder
     },
     []
   );

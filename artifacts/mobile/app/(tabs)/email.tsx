@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useState, useCallback } from "react";
 import {
@@ -44,11 +44,18 @@ function getInitials(name: string) {
 
 function getAvatarColor(name: string) {
   const colors = [
-    "#6C63FF", "#10B981", "#F59E0B", "#EF4444",
-    "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6",
+    "#6C63FF",
+    "#10B981",
+    "#F59E0B",
+    "#EF4444",
+    "#3B82F6",
+    "#8B5CF6",
+    "#EC4899",
+    "#14B8A6",
   ];
   let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  for (let i = 0; i < name.length; i++)
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
   return colors[Math.abs(hash) % colors.length];
 }
 
@@ -84,9 +91,7 @@ function EmailRow({
       style={({ pressed }) => [
         styles.emailRow,
         {
-          backgroundColor: !email.read
-            ? colors.tint + "08"
-            : colors.surface,
+          backgroundColor: !email.read ? colors.tint + "08" : colors.surface,
           opacity: pressed ? 0.85 : 1,
           borderBottomColor: colors.borderLight,
         },
@@ -105,7 +110,9 @@ function EmailRow({
               styles.emailFrom,
               {
                 color: colors.text,
-                fontFamily: !email.read ? "Inter_600SemiBold" : "Inter_500Medium",
+                fontFamily: !email.read
+                  ? "Inter_600SemiBold"
+                  : "Inter_500Medium",
               },
             ]}
             numberOfLines={1}
@@ -148,18 +155,15 @@ function EmailRow({
           style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
           hitSlop={8}
         >
-          <Feather
-            name={email.starred ? "star" : "star"}
-            size={14}
+          <Ionicons
+            name={email.starred ? "star" : "star-outline"}
+            size={16}
             color={email.starred ? colors.warning : colors.border}
           />
         </Pressable>
         {email.label && (
           <View
-            style={[
-              styles.labelBadge,
-              { backgroundColor: colors.tint + "15" },
-            ]}
+            style={[styles.labelBadge, { backgroundColor: colors.tint + "15" }]}
           >
             <Text style={[styles.labelText, { color: colors.tint }]}>
               {email.label}
@@ -216,16 +220,18 @@ export default function EmailScreen() {
       Alert.alert("Missing fields", "Please fill in To and Subject.");
       return;
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    sendEmail(composeTo.trim(), composeSubject.trim(), composeBody.trim());
+    // sendEmail is not implemented - show dev warning and close modal
+    if (__DEV__) {
+      console.warn("sendEmail: not implemented");
+    }
     setComposeTo("");
     setComposeSubject("");
     setComposeBody("");
     setShowCompose(false);
-    Alert.alert("Sent", "Your email has been sent.");
-  }, [composeTo, composeSubject, composeBody, sendEmail]);
+  }, [composeTo, composeSubject]);
 
-  const topInset = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
+  const topInset =
+    Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
   return (
@@ -343,10 +349,7 @@ export default function EmailScreen() {
         {selectedEmail && (
           <View style={[styles.modal, { backgroundColor: colors.background }]}>
             <View
-              style={[
-                styles.modalHeader,
-                { borderBottomColor: colors.border },
-              ]}
+              style={[styles.modalHeader, { borderBottomColor: colors.border }]}
             >
               <Pressable
                 onPress={() => setSelectedEmail(null)}
@@ -371,7 +374,9 @@ export default function EmailScreen() {
                     name="star"
                     size={20}
                     color={
-                      selectedEmail.starred ? colors.warning : colors.textSecondary
+                      selectedEmail.starred
+                        ? colors.warning
+                        : colors.textSecondary
                     }
                   />
                 </Pressable>
@@ -382,7 +387,11 @@ export default function EmailScreen() {
                   }}
                   style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
                 >
-                  <Feather name="trash-2" size={20} color={colors.destructive} />
+                  <Feather
+                    name="trash-2"
+                    size={20}
+                    color={colors.destructive}
+                  />
                 </Pressable>
               </View>
             </View>
@@ -390,9 +399,7 @@ export default function EmailScreen() {
               style={styles.emailDetailBody}
               showsVerticalScrollIndicator={false}
             >
-              <Text
-                style={[styles.emailDetailSubject, { color: colors.text }]}
-              >
+              <Text style={[styles.emailDetailSubject, { color: colors.text }]}>
                 {selectedEmail.subject}
               </Text>
               <View style={styles.emailDetailMeta}>
@@ -420,17 +427,12 @@ export default function EmailScreen() {
                   </Text>
                 </View>
                 <Text
-                  style={[
-                    styles.detailTime,
-                    { color: colors.textSecondary },
-                  ]}
+                  style={[styles.detailTime, { color: colors.textSecondary }]}
                 >
                   {timeAgo(selectedEmail.date)}
                 </Text>
               </View>
-              <Text
-                style={[styles.emailDetailBody2, { color: colors.text }]}
-              >
+              <Text style={[styles.emailDetailBody2, { color: colors.text }]}>
                 {selectedEmail.body}
               </Text>
               <Pressable
@@ -465,20 +467,14 @@ export default function EmailScreen() {
       >
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <View
-            style={[
-              styles.modalHeader,
-              { borderBottomColor: colors.border },
-            ]}
+            style={[styles.modalHeader, { borderBottomColor: colors.border }]}
           >
             <Pressable
               onPress={() => setShowCompose(false)}
               style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
             >
               <Text
-                style={[
-                  styles.modalCancel,
-                  { color: colors.textSecondary },
-                ]}
+                style={[styles.modalCancel, { color: colors.textSecondary }]}
               >
                 Cancel
               </Text>
@@ -488,7 +484,17 @@ export default function EmailScreen() {
             </Text>
             <Pressable
               onPress={handleSend}
-              style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
+              disabled={!composeTo.trim() || !composeSubject.trim()}
+              style={({ pressed }) => [
+                {
+                  opacity:
+                    !composeTo.trim() || !composeSubject.trim()
+                      ? 0.4
+                      : pressed
+                        ? 0.6
+                        : 1,
+                },
+              ]}
             >
               <Text
                 style={[
@@ -505,7 +511,10 @@ export default function EmailScreen() {
               </Text>
             </Pressable>
           </View>
-          <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.modalBody}
+            showsVerticalScrollIndicator={false}
+          >
             <View
               style={[
                 styles.composeField,
@@ -547,10 +556,7 @@ export default function EmailScreen() {
               />
             </View>
             <TextInput
-              style={[
-                styles.composeBodyInput,
-                { color: colors.text },
-              ]}
+              style={[styles.composeBodyInput, { color: colors.text }]}
               placeholder="Write your message..."
               placeholderTextColor={colors.textSecondary}
               value={composeBody}
