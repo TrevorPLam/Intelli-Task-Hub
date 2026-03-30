@@ -71,7 +71,7 @@ jobs:
           npm test -- --coverage --watchAll=false
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         with:
           directory: lib/integrations-openai-ai-react/coverage
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -175,7 +175,7 @@ jobs:
           retention-days: 7
 
       - name: Upload coverage reports
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         if: matrix.browser == 'chromium'
         with:
           directory: lib/integrations-openai-ai-react/playwright-coverage/
