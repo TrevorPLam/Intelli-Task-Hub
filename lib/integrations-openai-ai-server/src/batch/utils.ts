@@ -101,7 +101,8 @@ export async function batchProcessWithSSE<T, R>(
   sendEvent: (event: { type: string; [key: string]: unknown }) => void,
   options: Omit<BatchOptions, "concurrency" | "onProgress"> = {}
 ): Promise<R[]> {
-  // TODO: Wire to POST /api/openai/batch when batch processing route is implemented
+  // TODO: Wire this function to a real use case or POST /api/openai/batch route
+  // Currently this is an unused export that should be connected to batch processing SSE endpoint
   const { retries = 5, minTimeout = 1000, maxTimeout = 15000 } = options;
 
   sendEvent({ type: "started", total: items.length });

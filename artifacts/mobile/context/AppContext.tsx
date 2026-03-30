@@ -6,6 +6,16 @@ import React, {
   useCallback,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Crypto from "expo-crypto";
+
+/**
+ * App Context - Global State Management
+ *
+ * Provides centralized state management for projects, tasks, events, and emails.
+ * Uses AsyncStorage for persistence and Crypto.randomUUID() for secure ID generation.
+ *
+ * @updated 2026-03-30 - Replaced insecure generateId() with Crypto.randomUUID()
+ */
 
 export type Priority = "high" | "medium" | "low";
 export type TaskStatus = "todo" | "in_progress" | "done";
@@ -80,9 +90,6 @@ const PROJECTS_KEY = "@projects";
 const TASKS_KEY = "@tasks";
 const EVENTS_KEY = "@events";
 const EMAILS_KEY = "@emails";
-
-const generateId = () =>
-  Date.now().toString() + Math.random().toString(36).substr(2, 9);
 
 const PROJECT_COLORS = [
   "#6C63FF",
@@ -325,7 +332,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (project: Omit<Project, "id" | "createdAt">) => {
       const newProject: Project = {
         ...project,
-        id: generateId(),
+        id: Crypto.randomUUID(),
         createdAt: new Date().toISOString(),
       };
       setProjects((prev) => [...prev, newProject]);
@@ -347,7 +354,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const addTask = useCallback((task: Omit<Task, "id" | "createdAt">) => {
     const newTask: Task = {
       ...task,
-      id: generateId(),
+      id: Crypto.randomUUID(),
       createdAt: new Date().toISOString(),
     };
     setTasks((prev) => [...prev, newTask]);
@@ -364,7 +371,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addEvent = useCallback((event: Omit<CalendarEvent, "id">) => {
-    const newEvent: CalendarEvent = { ...event, id: generateId() };
+    const newEvent: CalendarEvent = { ...event, id: Crypto.randomUUID() };
     setEvents((prev) => [...prev, newEvent]);
   }, []);
 

@@ -1407,9 +1407,42 @@ export const modules: ModuleMap = {
 
 <a id="t-19"></a>
 
-## [ ] T-19 — Dead Code Elimination
+## [x] T-19 — Dead Code Elimination
 
-**Status:** `NOT_STARTED`
+**Status:** `DONE`
+
+### Implementation Summary
+
+- **T-19-1** — Removed `babel-plugin-react-compiler` from mobile devDependencies
+  - React Compiler remains enabled via `app.config.ts` experiments flag (Expo SDK 54+)
+  - Eliminated potential conflicts between babel plugin and native React Compiler
+
+- **T-19-2** — Replaced insecure `generateId()` with `Crypto.randomUUID()`
+  - Added `expo-crypto` dependency to mobile package
+  - Updated all 3 calls in AppContext: `addProject`, `addTask`, `addEvent`
+  - Removed the insecure `Date.now() + Math.random()` implementation
+
+- **T-19-3** — Added comprehensive README.md to scripts package
+  - Documented current state and future automation intentions
+  - Provided usage examples and development guidelines
+
+- **T-19-4** — Added TODO comment to `batchProcessWithSSE`
+  - Marked as unused export requiring future wiring to batch processing SSE endpoint
+  - Clarified its current dead code status
+
+### Files Modified
+
+1. `artifacts/mobile/package.json` — removed `babel-plugin-react-compiler`, added `expo-crypto`
+2. `artifacts/mobile/context/AppContext.tsx` — replaced generateId with Crypto.randomUUID, updated documentation
+3. `scripts/README.md` — new comprehensive documentation file
+4. `lib/integrations-openai-ai-server/src/batch/utils.ts` — added TODO comment to batchProcessWithSSE
+
+### Verification
+
+- TypeScript compilation passes for mobile package
+- React Compiler remains functional via app.config.ts
+- All ID generation now uses cryptographically secure UUIDs
+- No breaking changes to existing functionality
 
 ### Definition of Done
 
