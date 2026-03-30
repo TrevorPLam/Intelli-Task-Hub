@@ -36,7 +36,7 @@
     "knip": "^5.46.0",
     "msw": "^2.7.0",
     "prettier": "^3.5.3",
-    "prettier-plugin-tailwindcss": "^0.6.11",
+    "prettier-plugin-tailwindcss": "^0.7.2",
     "rollup-plugin-visualizer": "^5.14.0",
     "simple-git-hooks": "^2.12.1",
     "turbo": "^2.4.4",
