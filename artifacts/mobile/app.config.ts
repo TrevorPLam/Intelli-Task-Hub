@@ -47,6 +47,13 @@ const config: ExpoConfig = {
       "ACCESS_FINE_LOCATION",
       "ACCESS_COARSE_LOCATION",
     ],
+    blockedPermissions: [
+      // Prevent permission creep - block dangerous permissions we don't use
+      "RECORD_AUDIO",
+      "WRITE_EXTERNAL_STORAGE",
+      "READ_CONTACTS",
+      "WRITE_CONTACTS",
+    ],
   },
 
   web: {

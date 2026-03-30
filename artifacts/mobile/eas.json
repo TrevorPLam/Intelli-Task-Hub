@@ -1,0 +1,18 @@
+{
+  "cli": {
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": "REPLIT_EXPO_DEV_DOMAIN",
+      "plugins": ["@expo/ngrok"]
+    },
+    "preview": {
+      "developmentClient": "REPLIT_EXPO_DEV_DOMAIN",
+      "plugins": ["@expo/ngrok"]
+    },
+    "production": {
+      "autoIncrement": true
+    }
+  }
+}
