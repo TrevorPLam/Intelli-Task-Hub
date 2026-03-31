@@ -11,6 +11,7 @@
  */
 
 import { type Request, type Response, type NextFunction } from "express";
+import { ProblemTypes } from "../lib/problem-types";
 
 // Extend Express Response type for our middleware
 declare global {
@@ -54,16 +55,21 @@ export interface ResponseEnvelope<T = unknown> {
  * RFC 9457 Problem Details error structure.
  */
 export interface ProblemDetails {
-  type?: string;
+  /** URI identifying the problem type */
+  type: string;
   title: string;
   detail: string;
   instance?: string;
   status: number;
   errorId?: string;
   errors?: Array<{
-    pointer?: string;
-    detail: string;
+    field: string;
+    message: string;
   }>;
+  /** Resolution guidance for the client */
+  resolution?: string;
+  /** Severity level for monitoring */
+  severity?: string;
   [key: string]: unknown;
 }
 
@@ -153,10 +159,24 @@ export function createErrorResponse(
   detail: string,
   extensions?: Record<string, unknown>
 ): ProblemDetails {
+  // Map common titles to problem types
+  const problemTypeKey = Object.keys(ProblemTypes).find(
+    (key) =>
+      ProblemTypes[key as keyof typeof ProblemTypes].title === title ||
+      ProblemTypes[key as keyof typeof ProblemTypes].status === statusCode
+  ) as keyof typeof ProblemTypes | undefined;
+
+  const problemType = problemTypeKey
+    ? ProblemTypes[problemTypeKey]
+    : ProblemTypes.INTERNAL_ERROR;
+
   const problem: ProblemDetails = {
-    status: statusCode,
-    title,
+    type: problemType.uri,
+    title: problemType.title,
+    status: problemType.status,
     detail,
+    resolution: problemType.resolution,
+    severity: problemType.severity,
     ...extensions,
   };
 

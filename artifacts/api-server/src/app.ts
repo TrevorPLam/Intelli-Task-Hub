@@ -7,6 +7,7 @@ import { logger } from "./lib/logger";
 import { verifyApiKey } from "./middlewares/auth";
 import { responseFormatterMiddleware } from "./middlewares/response";
 import { trackError } from "./lib/error-aggregator";
+import { ProblemTypes } from "./lib/problem-types";
 
 // Parse CORS allowlist from environment
 function parseCorsOrigins(): string[] | boolean {
@@ -131,7 +132,8 @@ app.use(
     // Generate unique error ID for correlation
     const errorId = crypto.randomUUID();
 
-    // Determine severity based on error type
+    // Determine problem type and severity based on error type
+    let problemType = ProblemTypes.INTERNAL_ERROR;
     const severity: "low" | "medium" | "high" | "critical" =
       err.name === "UnauthorizedError"
         ? "medium"
@@ -140,6 +142,15 @@ app.use(
           : err.name === "DatabaseError"
             ? "high"
             : "high";
+
+    // Map error name to problem type
+    if (err.name === "ValidationError") {
+      problemType = ProblemTypes.VALIDATION_ERROR;
+    } else if (err.name === "UnauthorizedError") {
+      problemType = ProblemTypes.UNAUTHORIZED;
+    } else if (err.name === "DatabaseError") {
+      problemType = ProblemTypes.DATABASE_ERROR;
+    }
 
     // Track error in aggregator for monitoring and alerting
     trackError({
@@ -180,11 +191,14 @@ app.use(
     const isDevelopment = process.env.NODE_ENV === "development";
 
     res.problem(
-      500,
-      "Internal Server Error",
-      "An unexpected error occurred while processing your request",
+      problemType.status,
+      problemType.title,
+      problemType.description,
       {
         errorId,
+        type: problemType.uri,
+        resolution: problemType.resolution,
+        severity: problemType.severity,
         ...(isDevelopment && {
           debug: {
             message: err.message,

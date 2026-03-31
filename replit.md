@@ -124,3 +124,51 @@ Push schema: `pnpm --filter @workspace/db run push`
 - `EXPO_PUBLIC_APP_ORIGIN` — App origin for Expo Router deep linking/universal links (e.g., `https://app.example.com`). Falls back to `https://localhost` in development if not set.
 - `PORT` — API server port (default: 3000)
 - `NODE_ENV` — `development` or `production`
+
+---
+
+## Project-First Architecture Alignment
+
+When working on this codebase, remember the app is transforming from a generic assistant shell into a **project operating system for AI-assisted work**.
+
+### Primary Object is the Project
+- All new features should be designed with project context in mind
+- Chat is a capability within a project, not a standalone feature
+- Ask: "How does this feature work within a project context?"
+
+### Knowledge Must be Structured
+- Favor creating MemoryItem records over relying on message history
+- Design for extraction and reuse, not just transient chat
+- Citations and sources are first-class, not afterthoughts
+
+### Tasks are Linked, Not Isolated
+- New task features should support linking to projects, threads, decisions, sources
+- Task orchestration requires approval gates for AI-proposed actions
+- Status and priority are meaningful, not cosmetic
+
+### Provider Abstraction is Required
+- All AI integration must go through the provider interface
+- No hardcoded OpenAI-specific code in business logic
+- Design for future Anthropic, Gemini, OpenRouter support
+
+### Data Portability is a Feature
+- All project data must be exportable
+- Design with clean data boundaries for JSON/Markdown export
+- Avoid tight coupling that prevents clean extraction
+
+### Security and Trust First
+- All sensitive operations validated server-side
+- AI-generated content clearly labeled
+- User confirmation required for high-impact actions
+- Audit trail (ActivityEvent) for accountability
+
+### Mobile-First, Web-Complemented
+- Mobile app is the primary interface
+- Web console is for complex project management workflows
+- Design mobile-first, enhance with web
+
+### Migration Mindset
+- Prefer additive changes over destructive rewrites
+- Maintain backwards compatibility during transitions
+- Bridge tables and dual-write strategies for data migration
+- Keep existing features working while building new project-first features

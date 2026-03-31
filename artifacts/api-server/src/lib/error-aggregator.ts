@@ -60,7 +60,7 @@ export interface AggregatedError {
 }
 
 /**
- * Error alert configuration.
+ * Error alert configuration with rate limiting.
  */
 export interface ErrorAlertConfig {
   /** Threshold for triggering alert (errors per minute) */
@@ -71,6 +71,8 @@ export interface ErrorAlertConfig {
   minSeverity: ErrorSeverity;
   /** Alert callback function */
   onAlert: (alert: ErrorAlert) => void;
+  /** Cooldown period in minutes between alerts (default: 15) */
+  cooldownMinutes?: number;
 }
 
 /**
@@ -177,6 +179,7 @@ export class ErrorAggregator {
   private errors: Map<string, AggregatedError> = new Map();
   private config: ErrorAggregatorConfig;
   private cleanupTimer: NodeJS.Timeout | null = null;
+  private lastAlertTimes: Map<string, Date> = new Map();
 
   /**
    * Private constructor to enforce singleton pattern.
@@ -295,12 +298,14 @@ export class ErrorAggregator {
    * @param options - Filter options
    * @returns Filtered array of errors
    */
-  public getErrors(options: {
-    severity?: ErrorSeverity;
-    type?: string;
-    since?: Date;
-    limit?: number;
-  } = {}): AggregatedError[] {
+  public getErrors(
+    options: {
+      severity?: ErrorSeverity;
+      type?: string;
+      since?: Date;
+      limit?: number;
+    } = {}
+  ): AggregatedError[] {
     let results = Array.from(this.errors.values());
 
     if (options.severity) {
@@ -434,7 +439,10 @@ export class ErrorAggregator {
 
     if (oldestKey) {
       this.errors.delete(oldestKey);
-      logger.debug({ errorId: oldest!.id }, "Removed oldest error to make room");
+      logger.debug(
+        { errorId: oldest!.id },
+        "Removed oldest error to make room"
+      );
     }
   }
 
@@ -501,7 +509,7 @@ export class ErrorAggregator {
   }
 
   /**
-   * Checks and triggers configured alerts.
+   * Checks and triggers configured alerts with rate limiting.
    */
   private checkAlerts(error: AggregatedError): void {
     if (!this.config.alerts) return;
@@ -510,14 +518,31 @@ export class ErrorAggregator {
 
     for (const alertConfig of this.config.alerts) {
       // Check minimum severity
-      if (SEVERITY_RANK[error.severity] < SEVERITY_RANK[alertConfig.minSeverity]) {
+      if (
+        SEVERITY_RANK[error.severity] < SEVERITY_RANK[alertConfig.minSeverity]
+      ) {
+        continue;
+      }
+
+      // Check cooldown period
+      const cooldownMs = (alertConfig.cooldownMinutes ?? 15) * 60 * 1000;
+      const alertKey = `${alertConfig.minSeverity}-${alertConfig.windowMinutes}`;
+      const lastAlert = this.lastAlertTimes.get(alertKey);
+
+      if (lastAlert && now.getTime() - lastAlert.getTime() < cooldownMs) {
+        // Still in cooldown period, skip alert
         continue;
       }
 
       // Count errors in the window
-      const windowStart = new Date(now.getTime() - alertConfig.windowMinutes * 60 * 1000);
+      const windowStart = new Date(
+        now.getTime() - alertConfig.windowMinutes * 60 * 1000
+      );
       const errorsInWindow = this.getErrors({ since: windowStart });
-      const count = errorsInWindow.reduce((sum, e) => sum + e.occurrenceCount, 0);
+      const count = errorsInWindow.reduce(
+        (sum, e) => sum + e.occurrenceCount,
+        0
+      );
 
       if (count >= alertConfig.threshold) {
         const affectedTypes = [...new Set(errorsInWindow.map((e) => e.type))];
@@ -531,6 +556,9 @@ export class ErrorAggregator {
           affectedTypes,
           timestamp: now,
         };
+
+        // Record alert time for cooldown
+        this.lastAlertTimes.set(alertKey, now);
 
         alertConfig.onAlert(alert);
       }

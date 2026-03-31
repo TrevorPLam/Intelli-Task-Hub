@@ -2,11 +2,12 @@
 > @workspace/api-server@0.0.0 typecheck C:\Users\trevo\OneDrive\Desktop\Intelli-Task-Hub\artifacts\api-server
 > tsc -p tsconfig.json --noEmit
 
-src/index.ts(7,8): error TS6059: File 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/src/config/ai.ts' is not under 'rootDir' 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/artifacts/api-server/src'. 'rootDir' is expected to contain all source files.
 src/routes/__tests__/health.test.ts(13,32): error TS6133: 'vi' is declared but its value is never read.
 src/routes/__tests__/index.test.ts(8,32): error TS6133: 'vi' is declared but its value is never read.
-src/routes/openai/conversations.ts(14,48): error TS2307: Cannot find module '../../../config/ai' or its corresponding type declarations.
-src/routes/openai/conversations.ts(222,31): error TS2504: Type 'ChatCompletion & { _request_id?: string | null | undefined; }' must have a '[Symbol.asyncIterator]()' method that returns an async iterator.
+src/routes/openai/conversations.ts(14,48): error TS6059: File 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/src/config/ai.ts' is not under 'rootDir' 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/artifacts/api-server/src'. 'rootDir' is expected to contain all source files.
+  The file is in the program because:
+    Imported via "../../../../../src/config/ai" from file 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/artifacts/api-server/src/routes/openai/conversations.ts'
+    Imported via "../../../src/config/ai" from file 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/artifacts/api-server/src/index.ts'
 ../../src/config/ai.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
 ../../src/config/ai.ts(2,32): error TS6059: File 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/src/config/migration.ts' is not under 'rootDir' 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/artifacts/api-server/src'. 'rootDir' is expected to contain all source files.
 ../../src/config/ai.ts(3,31): error TS6059: File 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/src/config/audit.ts' is not under 'rootDir' 'C:/Users/trevo/OneDrive/Desktop/Intelli-Task-Hub/artifacts/api-server/src'. 'rootDir' is expected to contain all source files.
