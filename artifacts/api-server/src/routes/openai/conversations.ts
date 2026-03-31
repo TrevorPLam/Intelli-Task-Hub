@@ -10,8 +10,9 @@ import {
   SendOpenaiMessageParams,
 } from "@workspace/api-zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
-import { parseParams, parseBody, createError } from "../../lib/validate";
-import { getDefaultChatCompletionParams } from "../../../config/ai";
+import { parseParams, parseBody } from "../../lib/validate";
+import { getDefaultChatCompletionParams } from "../../../../../src/config/ai";
+import { trackError } from "../../lib/error-aggregator";
 
 const router: IRouter = Router();
 
@@ -73,9 +74,10 @@ router.get("/:id", async (req, res) => {
     .from(conversations)
     .where(eq(conversations.id, id));
   if (!conversation) {
-    res
-      .status(404)
-      .json(createError(404, "NOT_FOUND", "Conversation not found"));
+    res.problem(404, "Resource Not Found", "Conversation not found", {
+      resource: "conversation",
+      id,
+    });
     return;
   }
   const msgs = await db
@@ -100,9 +102,10 @@ router.delete("/:id", async (req, res) => {
     .from(conversations)
     .where(eq(conversations.id, id));
   if (!conversation) {
-    res
-      .status(404)
-      .json(createError(404, "NOT_FOUND", "Conversation not found"));
+    res.problem(404, "Resource Not Found", "Conversation not found", {
+      resource: "conversation",
+      id,
+    });
     return;
   }
   // Cascade delete handled by Drizzle FK constraint (onDelete: cascade)
@@ -176,9 +179,10 @@ router.post("/:id/messages", async (req, res) => {
     .from(conversations)
     .where(eq(conversations.id, id));
   if (!conversation) {
-    res
-      .status(404)
-      .json(createError(404, "NOT_FOUND", "Conversation not found"));
+    res.problem(404, "Resource Not Found", "Conversation not found", {
+      resource: "conversation",
+      id,
+    });
     return;
   }
 
@@ -209,6 +213,7 @@ router.post("/:id/messages", async (req, res) => {
     const defaultParams = getDefaultChatCompletionParams();
     const stream = await openai.chat.completions.create({
       ...defaultParams,
+      stream: true,
       messages: [
         {
           role: "system",
@@ -236,6 +241,24 @@ router.post("/:id/messages", async (req, res) => {
     res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
     res.end();
   } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+
+    // Track error in aggregator for monitoring
+    trackError({
+      severity: "high",
+      type: "OPENAI_STREAMING_ERROR",
+      message: error.message,
+      stack: error.stack,
+      context: {
+        correlationId: (req as any).id || crypto.randomUUID(),
+        method: req.method,
+        path: req.path,
+        userAgent: req.get("User-Agent"),
+        ip: req.ip,
+        metadata: { conversationId: id },
+      },
+    });
+
     req.log.error({ err }, "Error streaming OpenAI response");
     res.write(
       `data: ${JSON.stringify({ error: "Failed to get response" })}\n\n`

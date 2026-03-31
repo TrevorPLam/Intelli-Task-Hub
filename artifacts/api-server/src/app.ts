@@ -6,6 +6,7 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { verifyApiKey } from "./middlewares/auth";
 import { responseFormatterMiddleware } from "./middlewares/response";
+import { trackError } from "./lib/error-aggregator";
 
 // Parse CORS allowlist from environment
 function parseCorsOrigins(): string[] | boolean {
@@ -130,6 +131,31 @@ app.use(
     // Generate unique error ID for correlation
     const errorId = crypto.randomUUID();
 
+    // Determine severity based on error type
+    const severity: "low" | "medium" | "high" | "critical" =
+      err.name === "UnauthorizedError"
+        ? "medium"
+        : err.name === "ValidationError"
+          ? "low"
+          : err.name === "DatabaseError"
+            ? "high"
+            : "high";
+
+    // Track error in aggregator for monitoring and alerting
+    trackError({
+      severity,
+      type: err.name || "UNKNOWN_ERROR",
+      message: err.message,
+      stack: err.stack,
+      context: {
+        correlationId: errorId,
+        method: req.method,
+        path: req.path,
+        userAgent: req.get("User-Agent"),
+        ip: req.ip,
+      },
+    });
+
     // Log error with full context using Pino
     logger.error(
       {
@@ -150,17 +176,23 @@ app.use(
       "Unhandled route error"
     );
 
-    // Don't expose sensitive error details in production
+    // Use RFC 7807 Problem Details format for error response
     const isDevelopment = process.env.NODE_ENV === "development";
 
-    res.status(500).json({
-      error: "Internal server error",
-      errorId: isDevelopment ? errorId : undefined,
-      ...(isDevelopment && {
-        message: err.message,
-        stack: err.stack,
-      }),
-    });
+    res.problem(
+      500,
+      "Internal Server Error",
+      "An unexpected error occurred while processing your request",
+      {
+        errorId,
+        ...(isDevelopment && {
+          debug: {
+            message: err.message,
+            stack: err.stack,
+          },
+        }),
+      }
+    );
   }
 );
 

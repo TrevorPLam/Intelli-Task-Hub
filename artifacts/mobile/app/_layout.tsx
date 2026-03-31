@@ -42,7 +42,27 @@ setAuthTokenGetter(async () => {
 
 SplashScreen.preventAutoHideAsync();
 
-const queryClient = new QueryClient();
+// Configure QueryClient with error handling and retry logic
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error) => {
+        // Don't retry on 4xx errors (client errors)
+        if (error instanceof Error && error.message.includes("4")) {
+          return false;
+        }
+        // Retry up to 3 times for network/server errors
+        return failureCount < 3;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes
+    },
+    mutations: {
+      retry: false, // Don't retry mutations by default
+    },
+  },
+});
 
 // Error reporting function
 function handleError(error: Error, componentStack: string) {
