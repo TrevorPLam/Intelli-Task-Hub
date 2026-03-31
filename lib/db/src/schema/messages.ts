@@ -1,17 +1,18 @@
 /**
  * Database Schema: Messages
  *
- * Defines the structure for chat messages in conversations.
- * Each message belongs to a conversation and has a role (user/assistant/system).
+ * Defines the structure for chat messages in conversations with optimized
+ * indexing for foreign keys and timestamp-based queries.
  *
- * @fileoverview Message table with role constraint and foreign key relationships
- * @version 1.0.0
+ * @fileoverview Message table with performance-optimized indexes for chat workloads
+ * @version 2.0.0
  * @since 2026-03-30
  * @author Intelli-Task-Hub Team
  */
 
 import {
   check,
+  index,
   integer,
   pgTable,
   serial,
@@ -38,9 +39,22 @@ export const messages = pgTable(
       .notNull(),
   },
   (table) => ({
+    // Role constraint check
     roleCheck: check(
       "role_check",
       sql`${table.role} IN ('user', 'assistant', 'system')`
+    ),
+    // Index for efficient JOIN queries on conversation_id (N+1 prevention)
+    conversationIdIdx: index("idx_messages_conversation_id").on(
+      table.conversationId
+    ),
+    // Index for efficient date-based queries and sorting
+    createdAtIdx: index("idx_messages_created_at").on(table.createdAt),
+    // Composite index for listing messages in a conversation sorted by time
+    // Covers the common pattern: WHERE conversation_id = ? ORDER BY created_at
+    conversationCreatedIdx: index("idx_messages_conversation_created").on(
+      table.conversationId,
+      table.createdAt
     ),
   })
 );

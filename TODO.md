@@ -482,9 +482,9 @@
 
 <a id="t-27"></a>
 
-## [ ] T-27 — Database Performance & Query Optimization
+## [x] T-27 — Database Performance & Query Optimization
 
-**Status:** `NOT_STARTED`
+**Status:** `DONE`
 
 ### Definition of Done
 
